@@ -1,0 +1,18 @@
+# keychain-tag.cad — a rounded luggage/keychain tag for a Cricut or laser.
+# Two cut paths: the outline and the hanging hole. Export as SVG (real mm).
+#
+#   cad run examples/keychain-tag.cad
+#   # then, to cut it:
+#   cad run examples/keychain-tag.cad ; # (export line below writes tag.svg)
+
+units mm
+
+# 60 x 25 mm tag with generously rounded corners
+rect 60 25 rx=6 name=tag
+
+# 4 mm hanging hole, moved near the left edge
+circle 4 name=hole
+translate -22 0 target=hole
+
+render mode=2d
+export svg tag.svg

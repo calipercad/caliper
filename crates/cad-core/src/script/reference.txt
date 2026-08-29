@@ -1,0 +1,61 @@
+cad-assist script language
+===========================
+One command per line. `#` or `;` begins a comment. Text in "double quotes"
+is one token. Options are key=value; bare numbers are positional. Angles are
+degrees; lengths are in the current document units (default mm). Most creators
+accept name=<id>; if omitted, a name is auto-generated and auto-selected.
+
+2D PRIMITIVES (lie in the XY plane)
+  rect <w> <h> [rx=<corner>] [seg=8] [name=]      rectangle (rx rounds corners)
+  circle <r> [seg=64] [name=]                      circle
+  polygon <sides> <r> [name=]                      regular polygon
+  star <points> <r_outer> <r_inner> [name=]        star
+  arc <r> <start_deg> <end_deg> [seg=48] [name=]   open circular arc
+  path <x1> <y1> <x2> <y2> ... [closed] [name=]    polyline (add `closed`)
+
+3D PRIMITIVES (solids; base sits on the XY plane)
+  box <w> <d> <h> [name=]                          rectangular box
+  cylinder <r> <h> [seg=48] [name=]                cylinder
+  sphere <r> [seg=32] [name=]                       sphere
+  cone <r> <h> [seg=48] [name=]                    cone
+
+OPERATIONS (default target = current selection; override with target=<id>)
+  extrude <height> [target=] [name=]               2D shape -> 3D solid
+  revolve [seg=48] [target=] [name=]               revolve a profile about Z
+  translate <x> <y> [z] [target=]                  move
+  rotate <deg> [axis=x|y|z] [about=center|origin] [target=]
+  scale <factor> [about=center|origin] [target=]
+
+SKILLS (parametric generators — run `skills` to list)
+  skill gear teeth=<n> module=<mm> [pressure=20] [bore=<mm>] [thickness=<mm>]
+  skill boxjoint width= depth= height= thickness= [finger=] [lid] [gap=10]
+  skill honeycomb width= height= [cell=10] [wall=2] [margin=5]
+  skill washer outer=<r> inner=<r> [thickness=<mm>]
+  skill standoff outer=<r> bore=<r> height=<mm>
+  skill <name> ...                                 also runs ~/.cad-assist/skills/<name>.cad
+
+SCENE / INSPECTION
+  units mm|cm|in         list          bbox [name]
+  select <name>          delete <name>  clear         skills        help
+
+RENDER (ASCII/braille preview)
+  render [name] [mode=2d|3d] [w=cols] [h=rows] [yaw=deg] [pitch=deg]
+
+EXPORT
+  export svg   <path> [name=]     Cricut / Silhouette / laser / vinyl (mm)
+  export dxf   <path> [name=]     AutoCAD / LibreCAD / Fusion
+  export gcode <path> [name=]     pen plotter / drag knife / CNC contour
+  export stl   <path> [name=]     3D printing / slicers
+  export obj   <path> [name=]     3D mesh interchange
+  (omit name= to export every matching entity — good for laser layouts)
+
+FILES & AI
+  save <file.cad>        write the command history as a reproducible script
+  load <file.cad>        run a script file
+  ai <describe it>       ask Claude to generate and run a design
+
+EXAMPLE
+  units mm
+  skill gear teeth=24 module=2 bore=5 thickness=6 name=g1
+  render
+  export stl gear.stl name=g1

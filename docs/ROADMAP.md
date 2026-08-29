@@ -1,0 +1,361 @@
+# cad-assist — Roadmap
+
+A **spread-out, checkpointed plan** for growing cad-assist from a solid v0.1
+foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
+
+## How to use this roadmap
+
+- Each **phase** is an independently shippable milestone with its own version,
+  **design**, work items, and a **checkpoint** — a concrete, testable exit
+  criterion plus a demo command. A phase is "done" only when its checkpoint
+  passes with a green `cargo test`.
+- Phases are ordered by dependency and value. You can stop after any phase and
+  have a coherent, releasable tool. To **resume across sessions**, find the first
+  unchecked box, re-read that phase's Design, and continue — see *Resuming* at
+  the bottom.
+- Keep [`DESIGN.md`](DESIGN.md) in sync as the data model evolves.
+
+## Status at a glance
+
+| Phase | Version | Theme | State |
+|---|---|---|---|
+| 0 | v0.1 | Foundation | ✅ complete |
+| 1 | v0.2 | Robust 2D geometry (booleans, fillets, real holes) | ⬜ next |
+| 2 | v0.3 | Text & engraving + layered cut/score/engrave export | ⬜ |
+| 3 | v0.4 | 3D CSG, fillets/chamfers, shell/offset | ⬜ |
+| 4 | v0.5 | Drafting & rendering (HLR, shading, views, arrays, dims) | ⬜ |
+| 5 | v0.6 | Library explosion (15+ maker/craftsman skills) | ⬜ |
+| 6 | v0.7 | AI copilot (inspect-iterate-repair loop) | ⬜ |
+| 7 | v0.8 | Interop & UX (import, undo, watch, richer export) | ⬜ |
+| 8 | v1.0 | Extensibility & release (plugins, fuzz, CI, packaging) | ⬜ |
+
+---
+
+## Phase 0 — Foundation ✅ (v0.1)
+
+**Delivered.** Geometry kernel (`Vec/Mat`, `Contour`/`Shape`, `Mesh`,
+triangulation, extrude, revolve), the scripting language + `Interpreter` with a
+reproducible `history`, five parametric skills (`gear`, `boxjoint`, `honeycomb`,
+`washer`, `standoff`), five exporters (SVG/DXF/STL/OBJ/G-code), braille 2D/3D
+rendering with feature-edge wireframes, the `curl`/`jq` AI bridge, a REPL and
+CLI, five runnable examples, and a test suite (10 tests + doctest, all green).
+
+**Checkpoint (met):** `cargo test` green; all five `examples/*.cad` run and
+produce valid files; 3D wireframes are clean; AI fails gracefully without a key.
+
+---
+
+## Phase 1 — Robust 2D geometry (v0.2)
+
+**Objective.** Make 2D genuinely CAD-grade: boolean operations, fillets/chamfers,
+and — the headline — **real holes that survive extrusion**.
+
+**Design.**
+- **Polygon booleans.** Implement a Greiner–Hormann (or Vatti) clipper over
+  `Contour` lists producing a `Shape` (outer + holes). New module
+  `geom2d/boolean.rs` exposing `union`, `difference`, `intersection`,
+  `xor`. Robustness: snap-rounding to an epsilon grid; handle coincident edges
+  and multiple result loops; classify each output loop by winding to assign
+  outer-vs-hole. This is the load-bearing algorithm of the phase — budget test
+  time accordingly.
+- **Holed extrusion.** Once a `Shape` can carry true holes, extend `extrude` to
+  triangulate the capped face **with holes** (bridge each hole to the outer
+  boundary before ear-clipping, or use a constrained triangulation). This fixes
+  the documented v1 limitation so a washer/gear bore is actually hollow in STL.
+- **Fillet/chamfer (2D).** Corner rounding/beveling on `Contour` vertices:
+  `fillet <r> [target=]`, `chamfer <d> [target=]`. Operates on straight-segment
+  joints; arcs are re-tessellated.
+- **Exporter fidelity.** Emit true `CIRCLE`/`ARC` in DXF where a contour is known
+  to be a circle/arc (tag builders with an optional primitive hint), and real
+  `<circle>`/`<rect>` in SVG for cleaner cutter paths.
+
+**Work items.**
+- [ ] `geom2d/boolean.rs`: `union`/`difference`/`intersection`/`xor` on shapes.
+- [ ] Winding-based outer/hole classification for boolean results.
+- [ ] Language: `union`, `subtract`, `intersect` commands (2 operands → new entity).
+- [ ] Rework `extrude` to triangulate holed faces (holes cut through caps).
+- [ ] `fillet` / `chamfer` commands for 2D contours.
+- [ ] DXF/SVG: emit primitive `CIRCLE`/`ARC`/`<circle>` when geometry is known.
+- [ ] Tests: boolean truth table, hole-through-extrude (STL manifold check),
+      fillet corner count/tangency, exporter primitive emission.
+
+**Checkpoint.** `subtract` a circle from a rect, `extrude`, export STL → the hole
+is a real through-hole (verified by a manifold/genus test in code). Demo:
+```
+rect 40 40 name=plate ; circle 8 name=bore ; subtract plate bore name=part
+extrude 5 target=part name=solid ; export stl part.stl name=solid
+```
+`cargo test` green including a new `hole_is_manifold` test.
+
+**Risks.** Boolean robustness is the classic CAD hard problem. Mitigate with
+snap-rounding, a fuzz target (pulled forward from Phase 8 if needed), and a
+conservative fallback that reports non-manifold input rather than emitting junk.
+
+---
+
+## Phase 2 — Text & engraving + layered export (v0.3)
+
+**Objective.** First-class text for labels, engraving, and cut files, plus the
+**layer semantics Cricut/laser workflows need** (cut vs score vs engrave).
+
+**Design.**
+- **Stroke text (engrave/plot).** Embed a public-domain single-stroke Hershey
+  font as static data; `text "HELLO" h=10 [font=stroke]` emits open `Contour`s —
+  ideal for pen plotters, drag-engravers, and laser scoring. No dependency; the
+  font tables are `const` data in `geom2d/text/`.
+- **Outline text (cut).** A minimal TrueType (`glyf`) parser producing filled
+  `Shape`s for through-cuts, quadratic béziers tessellated to `seg`. Kept
+  optional and self-contained (`font=outline path=/…/Font.ttf`).
+- **Layers.** Add an optional `layer` (and `role`: cut/score/engrave) to
+  `Entity`. SVG export groups by layer with conventional per-role stroke colors
+  and `<g inkscape:label>`; DXF writes entities onto named layers. This is what
+  makes a single SVG drive a multi-op cutter job.
+
+**Work items.**
+- [ ] `geom2d/text/hershey.rs` with embedded stroke font + `stroke_text()`.
+- [ ] `text` command (stroke path); alignment (`align=left|center`) & spacing.
+- [ ] Optional `glyf` outline parser → filled shapes for cutting.
+- [ ] `Entity.layer` / `role`; `layer <name>` and `role <cut|score|engrave>` cmds.
+- [ ] SVG layered/colored export; DXF named layers.
+- [ ] Tests: stroke text bbox/segment counts, layered SVG structure, DXF layers.
+
+**Checkpoint.** Engrave a label and export a layered SVG whose cut and engrave
+paths are on separate, correctly-colored layers. Demo:
+```
+text "MAKER" h=12 name=label role=engrave
+rect 80 24 rx=4 name=badge role=cut
+export svg badge.svg
+```
+SVG contains two `<g>` layers with distinct stroke colors; `cargo test` green.
+
+**Risks.** TTF parsing scope-creep — keep the outline parser to `glyf` only and
+document unsupported tables; stroke text (self-contained) is the primary path.
+
+---
+
+## Phase 3 — 3D CSG, fillets/chamfers, shell (v0.4)
+
+**Objective.** True solid modeling: subtract/union/intersect meshes, round/bevel
+edges, and hollow parts.
+
+**Design.**
+- **Mesh booleans.** A BSP-based CSG (split each mesh by the other's planes,
+  classify fragments inside/outside, recombine) in `geom3d/csg.rs`, exposing
+  `union`/`difference`/`intersection` on `Mesh`. Follow the well-trodden
+  csg.js/BSP approach; add coplanar-face handling and an epsilon. Validate
+  manifoldness on output.
+- **Edge fillet/chamfer (3D).** Start with fillets/chamfers on the vertical edges
+  produced by `extrude` (analytic — replace the sharp corner with an arc/bevel in
+  2D *before* extruding), then generalize to mesh-edge rounding later.
+- **Shell / offset.** `shell <thickness>` to hollow a solid (offset inward and
+  subtract) — critical for enclosures and print weight.
+
+**Work items.**
+- [ ] `geom3d/csg.rs`: BSP build, clip, invert, `union`/`difference`/`intersection`.
+- [ ] Language: 3D `union`/`subtract`/`intersect` (dispatch by geometry kind).
+- [ ] `shell <t>` on meshes; `fillet3`/`chamfer3` on extrude edges.
+- [ ] Manifold/normal-consistency validator used by tests.
+- [ ] Tests: cube−sphere volume/manifold, union tri-count sanity, shell wall.
+
+**Checkpoint.** `box − cylinder` yields a solid with a real bored hole, exported
+STL passes the manifold validator. Demo:
+```
+box 40 40 20 name=block ; cylinder 8 30 name=drill ; translate 20 20 -5 target=drill
+subtract block drill name=holed ; export stl holed.stl name=holed
+```
+`cargo test` green with a `csg_manifold` test.
+
+**Risks.** CSG numerical robustness. Mitigate with plane snapping, a fuzz target,
+and clear "input not manifold / self-intersecting" errors instead of silent bad
+output. Ties back to Phase 8 fuzzing.
+
+---
+
+## Phase 4 — Drafting & rendering (v0.5)
+
+**Objective.** Make the terminal preview read like an engineering tool, and add
+the transforms/layout every real drawing needs.
+
+**Design.**
+- **Rendering upgrades.** Hidden-line removal for 3D (depth-sort faces, or a
+  z-buffer over the braille grid); optional shaded mode using ANSI grayscale via
+  half-block characters and a light direction; on-screen axes/grid and a scale
+  bar. New `render` modes: `shade`, `hlr`.
+- **Multi-view & iso.** `view top|front|right|iso` presets; `render layout=views`
+  to tile four viewports (three orthographic + iso), the classic CAD sheet.
+- **Dimensioned drawings.** A dimensioning pass that annotates a 2D shape's bbox
+  and key features with witness/extension lines and measured text (reusing Phase
+  2 stroke text). `dim <target>` and export to SVG/DXF as a drawing sheet.
+- **Layout ops.** `array linear|polar|grid`, `mirror axis=x|y|z`, `group`/`ungroup`
+  — so a single tooth/bolt becomes a ring/grid, and assemblies move as one.
+
+**Work items.**
+- [ ] HLR and `shade` renderers; axes/grid/scale-bar overlay.
+- [ ] `view` presets + `render layout=views` tiling.
+- [ ] `array` (linear/polar/grid), `mirror`, `group`/`ungroup`.
+- [ ] Dimensioning pass + SVG/DXF drawing-sheet export.
+- [ ] Tests: array counts/positions, mirror symmetry, HLR edge culling.
+
+**Checkpoint.** A polar `array` of a single gear tooth reconstructs a full gear;
+`render layout=views` shows four correct viewports; a dimensioned rect exports a
+readable SVG sheet. `cargo test` green.
+
+**Risks.** HLR performance on dense meshes — cap resolution and cull by silhouette
+first. Dimensioning aesthetics are iterative; ship "correct and legible" first.
+
+---
+
+## Phase 5 — Library explosion (v0.6)
+
+**Objective.** Deliver "extremely feature rich" as a *breadth* of parametric
+skills for makers, woodworkers, and machinists — the payoff of Phases 1–4.
+
+**Design.** Each skill is a `Skill` impl (or, where purely 2D/compositional, a
+shipped script-skill) leaning on the now-available booleans, fillets, text, and
+arrays. Group by audience. Where a skill needs holes/subtraction it depends on
+Phase 1/3 (call it out in the skill's doc).
+
+**Candidate skills (target ≥15).**
+- *Makers/electronics:* `gridfinity` bins/baseplates, `enclosure` (2-part snap/
+  screw box with standoffs & vents), `standoff_grid`, `cable_clip`, `knob`.
+- *Mechanical:* `sprocket` (roller-chain), `pulley` (GT2/HTD), `bevel_gear`,
+  `rack`, `cam`, `bearing_spacer`, `flange`.
+- *Woodworking/CNC:* `dovetail_box`, `living_hinge`, `tslot_joint`, `drawer`,
+  `shelf_pin`, `template` (router template with guide bushing offset).
+- *Craft/Cricut:* `card` (fold lines as score layer), `box_template` (gift box
+  net), `stencil`, `monogram` (text + frame), `mandala` (polar-arrayed motif).
+
+**Work items.**
+- [ ] Implement skills in dependency order (booleans-dependent ones after P1/P3).
+- [ ] A `docs/SKILLS.md` gallery that renders each skill's braille preview.
+- [ ] Golden tests: each skill runs with defaults and produces expected entity
+      counts / bbox; a smoke test iterating `SkillRegistry`.
+
+**Checkpoint.** `skills` lists ≥15 built-ins besides the original five; every
+skill runs at defaults in a single smoke test; the gallery doc builds. Demo:
+```
+skill gridfinity units_x=3 units_y=2 name=bin ; render mode=3d
+```
+`cargo test` green with a `all_skills_run_at_defaults` test.
+
+**Risks.** Scope. Timebox each skill; a script-skill is acceptable where it
+suffices. Prefer correct, well-parameterized skills over many shallow ones.
+
+---
+
+## Phase 6 — AI copilot (v0.7)
+
+**Objective.** Turn the single-shot `ai` into an **iterative copilot** that can
+inspect what it built, correct errors, and refine toward a described goal.
+
+**Design.**
+- **Tool-use loop.** Give the model a small tool set mapped to the interpreter:
+  `run_commands`, `render` (returns the braille preview as text), `list`/`bbox`
+  (returns scene state), and `errors`. Loop: generate → execute → feed back
+  render+state/errors → refine, until the model declares done or a step budget is
+  hit. Implemented in `ai/agent.rs`; still only `curl`/`jq`, now multi-turn with
+  a JSON message array.
+- **Repair on error.** When a generated command fails, return the exact error to
+  the model for a fix rather than aborting (`ai` currently aborts on first error).
+- **Skill-aware retrieval.** Include the skill list + usages (and user
+  script-skills) in context so the model prefers parametric skills over ad-hoc
+  geometry.
+- **UX.** `ai edit "<change>"` refines the current scene; `ai fix` repairs the
+  last failed run; optional streaming of the model's commands as they arrive.
+
+**Work items.**
+- [ ] `ai/agent.rs`: multi-turn message array, tool schema, step budget.
+- [ ] Wire tools to `Interpreter` (run/render/inspect/errors).
+- [ ] `ai edit` / `ai fix`; keep single-shot `ai` as the fast path.
+- [ ] Retrieval of skill usages into the system prompt.
+- [ ] Tests: loop harness with a mocked transport (no network) verifying
+      generate→error→repair→success and step-budget termination.
+
+**Checkpoint.** With a mocked transport, the copilot converges a task that
+requires one self-correction (a first attempt errors, second succeeds) and
+terminates within budget. With a real key, `ai "…"` visibly iterates. `cargo
+test` green (mocked, offline).
+
+**Risks.** Non-determinism and cost. Bound steps and tokens; make the loop fully
+testable offline via a transport trait so CI never hits the network.
+
+---
+
+## Phase 7 — Interop & UX (v0.8)
+
+**Objective.** Round-trip with the outside world and make daily use pleasant.
+
+**Design.**
+- **Import.** SVG path/`<rect>`/`<circle>` → `Shape`; DXF `LWPOLYLINE`/`CIRCLE`/
+  `ARC` → `Shape`; ASCII+binary STL → `Mesh`. New `import <file>` command and
+  `geom2d`/`geom3d` readers. Enables "edit this existing cut file."
+- **Editing UX.** `undo`/`redo` (snapshot or command-inverse stack), REPL
+  tab-completion for commands/skills/entity names, `watch <file.cad>` to
+  re-render on save, a `~/.cad-assist/config` for defaults (units, seg, render
+  size), and error messages that suggest the nearest command/skill.
+- **Richer export.** Binary STL, 3MF, PDF (vector) for print shops, and G2/G3
+  arc output in G-code for smoother CNC/plot paths.
+
+**Work items.**
+- [ ] SVG/DXF/STL importers + `import` command.
+- [ ] `undo`/`redo`; command-history-backed state stack.
+- [ ] REPL completion; `watch` mode; config file loading.
+- [ ] Binary STL, 3MF, PDF export; G2/G3 arcs in G-code.
+- [ ] Tests: import→export round-trip fidelity; undo restores prior scene.
+
+**Checkpoint.** Import an SVG produced earlier, modify it, and re-export with no
+geometry loss; `undo` returns the scene to its previous state exactly. Demo:
+```
+import badge.svg ; scale 1.5 ; export svg badge-big.svg
+```
+`cargo test` green with a `svg_roundtrip` and `undo_restores` test.
+
+**Risks.** Import format sprawl. Support the common subset well; reject the rest
+with clear messages rather than silently mangling.
+
+---
+
+## Phase 8 — Extensibility & release (v1.0)
+
+**Objective.** Make the library truly extensible by third parties and ship a
+polished, trustworthy 1.0.
+
+**Design.**
+- **Plugins.** A stable way to add native skills without forking: either a
+  WASM skill host (sandboxed, portable) or a documented dynamic-library ABI, with
+  `cad plugin add/list/remove` and a discovery dir. Prefer WASM for safety if the
+  `std`-only rule can be preserved at the host boundary.
+- **Correctness infra.** Property tests (triangulation always produces n-2
+  triangles with correct total area; booleans preserve area invariants) and
+  `cargo-fuzz` targets for the triangulator and CSG. Benchmarks for the hot paths.
+- **Release.** CI (build/test/clippy/fmt on push), prebuilt binaries, `cargo
+  install` support, a Homebrew formula, and a docs site generated from
+  `reference.txt` + these docs.
+
+**Work items.**
+- [ ] Plugin host (WASM or dylib ABI) + `cad plugin` commands + docs.
+- [ ] Property tests + fuzz targets for triangulate/boolean/CSG.
+- [ ] Benchmarks; CI workflow; clippy/fmt gates.
+- [ ] Packaging: release binaries, `cargo install`, Homebrew, docs site.
+
+**Checkpoint.** A third-party plugin loads and its skill appears in `skills`;
+fuzz targets run clean for a fixed corpus; CI is green; `cargo install` yields a
+working `cad`. Tag **v1.0**.
+
+**Risks.** Plugin ABI stability is a long-term commitment — version it explicitly
+and keep the surface minimal.
+
+---
+
+## Resuming across sessions
+
+1. Open the **Status at a glance** table; the first non-✅ row is the active phase.
+2. Re-read that phase's **Design** and **Work items**; the first unchecked box is
+   the next task.
+3. Make the change, add its test, and only check the box when `cargo test` is
+   green. When every box in a phase is checked **and** its Checkpoint demo passes,
+   flip the phase to ✅, bump the version, and add a `CHANGELOG` entry.
+4. If the data model changed, update [`DESIGN.md`](DESIGN.md) in the same commit.
+
+Each checkpoint is a safe stopping point: the tool is coherent and releasable
+there, so work can pause and resume without losing the thread.

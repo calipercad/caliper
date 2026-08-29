@@ -1,0 +1,122 @@
+//! `cad` — the cad-assist command-line front end.
+//!
+//! Usage:
+//!   cad                     start the interactive shell (REPL)
+//!   cad run <file.cad>      execute a script and print its output
+//!   cad <file.cad>          shorthand for `run`
+//!   cad ai <describe it>    generate a design with Claude and print/run it
+//!   cad new <name>          scaffold a starter script
+//!   cad skills              list available parametric skills
+//!   cad help                print the language reference
+//!   cad version
+
+mod repl;
+
+use cad_core::script::{Interpreter, LANGUAGE_REFERENCE};
+use std::process::ExitCode;
+
+fn main() -> ExitCode {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+
+    if args.is_empty() {
+        return repl::run();
+    }
+
+    match args[0].as_str() {
+        "help" | "-h" | "--help" => {
+            print!("{LANGUAGE_REFERENCE}");
+            ExitCode::SUCCESS
+        }
+        "version" | "-V" | "--version" => {
+            println!("cad-assist {}", env!("CARGO_PKG_VERSION"));
+            ExitCode::SUCCESS
+        }
+        "skills" => {
+            let mut it = Interpreter::new();
+            print!("{}", it.exec_line("skills").unwrap_or_default());
+            ExitCode::SUCCESS
+        }
+        "run" => match args.get(1) {
+            Some(path) => run_file(path),
+            None => {
+                eprintln!("usage: cad run <file.cad>");
+                ExitCode::FAILURE
+            }
+        },
+        "ai" => {
+            let prompt = args[1..].join(" ");
+            if prompt.trim().is_empty() {
+                eprintln!("usage: cad ai <describe what to make>");
+                return ExitCode::FAILURE;
+            }
+            let mut it = Interpreter::new();
+            match it.exec_line(&format!("ai {prompt}")) {
+                Ok(out) => {
+                    print!("{out}");
+                    ExitCode::SUCCESS
+                }
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
+        "new" => {
+            let name = args.get(1).map(|s| s.as_str()).unwrap_or("design");
+            scaffold(name)
+        }
+        // shorthand: `cad foo.cad`
+        path if path.ends_with(".cad") => run_file(path),
+        other => {
+            eprintln!("unknown command '{other}'. Try `cad help` or just `cad`.");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn run_file(path: &str) -> ExitCode {
+    let text = match std::fs::read_to_string(path) {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("cannot read {path}: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let mut it = Interpreter::new();
+    match it.exec_script(&text) {
+        Ok(out) => {
+            print!("{out}");
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("error: {e}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn scaffold(name: &str) -> ExitCode {
+    let path = format!("{name}.cad");
+    if std::path::Path::new(&path).exists() {
+        eprintln!("{path} already exists");
+        return ExitCode::FAILURE;
+    }
+    let body = format!(
+        "# {name}.cad — cad-assist design\n\
+         units mm\n\n\
+         # a parametric gear, ready to slice\n\
+         skill gear teeth=24 module=2 bore=5 thickness=6 name=gear\n\n\
+         render\n\
+         # export stl {name}.stl name=gear\n"
+    );
+    match std::fs::write(&path, body) {
+        Ok(_) => {
+            println!("created {path}\n  run it with:  cad run {path}");
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("cannot write {path}: {e}");
+            ExitCode::FAILURE
+        }
+    }
+}

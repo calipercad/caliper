@@ -1,0 +1,14 @@
+# laser-box.cad — a finger-jointed enclosure, laid out flat for a laser cutter.
+# The `boxjoint` skill emits all panels side by side with castellated edges
+# that interlock. Export to SVG (cut lines) or DXF for your laser software.
+#
+#   cad run examples/laser-box.cad
+
+units mm
+
+# 80 x 60 x 40 mm box in 3 mm stock, with a lid, 8 mm fingers
+skill boxjoint width=80 depth=60 height=40 thickness=3 finger=8 lid=true name=case
+
+render mode=2d
+export svg laser-box.svg
+export dxf laser-box.dxf

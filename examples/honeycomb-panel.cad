@@ -1,0 +1,13 @@
+# honeycomb-panel.cad — a ventilated / decorative panel perforated with a
+# hexagonal grid. Great for speaker grilles, vents, or laser-cut decor.
+#
+#   cad run examples/honeycomb-panel.cad
+
+units mm
+
+# 120 x 80 mm plate, 10 mm hex cells, 2 mm walls, 6 mm solid margin
+skill honeycomb width=120 height=80 cell=10 wall=2 margin=6 name=grille
+
+render mode=2d
+export svg honeycomb-panel.svg
+export dxf honeycomb-panel.dxf

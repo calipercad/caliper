@@ -1,0 +1,13 @@
+# print-gear.cad — a 3D-printable involute spur gear with a bored hub.
+# The `gear` skill builds a true involute tooth profile; thickness extrudes it
+# into a solid ready to slice.
+#
+#   cad run examples/print-gear.cad
+
+units mm
+
+# 24-tooth, module 2 (=> 48 mm pitch dia), 5 mm bore, 6 mm thick
+skill gear teeth=24 module=2 pressure=20 bore=5 thickness=6 name=gear
+
+render mode=3d
+export stl print-gear.stl name=gear

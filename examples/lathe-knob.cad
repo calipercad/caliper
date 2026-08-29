@@ -1,0 +1,16 @@
+# lathe-knob.cad — a turned knob built by revolving a profile about the Z axis.
+# `path` defines the half-section as (radius, height) points; `revolve` spins it
+# into a solid of revolution — the digital equivalent of a lathe.
+#
+#   cad run examples/lathe-knob.cad
+
+units mm
+
+# Half-section, from the axis outward and up:
+#   base flange -> waist -> flared cap
+path 0 0  16 0  16 4  8 7  8 22  14 26  14 30  0 30  closed name=profile
+
+revolve seg=64 target=profile name=knob
+
+render mode=3d
+export stl lathe-knob.stl name=knob

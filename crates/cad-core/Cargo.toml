@@ -1,0 +1,14 @@
+[package]
+name = "cad-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Geometry kernel, parametric skills, exporters, renderer and AI bridge for cad-assist"
+
+[lib]
+name = "cad_core"
+path = "src/lib.rs"
+
+# Intentionally zero external dependencies: the whole kernel is pure std so the
+# toolkit builds offline and stays auditable. The AI bridge shells out to `curl`.
+[dependencies]

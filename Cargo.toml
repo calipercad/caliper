@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = ["crates/cad-core", "crates/cad-cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["cad-assist"]
+description = "A terminal-native, AI-assisted parametric CAD toolkit"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true
