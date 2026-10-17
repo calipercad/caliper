@@ -66,11 +66,7 @@ pub fn generate(request: &str) -> Result<String> {
         .stderr(Stdio::piped())
         .spawn()
         .and_then(|mut child| {
-            child
-                .stdin
-                .take()
-                .unwrap()
-                .write_all(body.as_bytes())?;
+            child.stdin.take().unwrap().write_all(body.as_bytes())?;
             child.wait_with_output()
         })
         .map_err(|e| CadError::Ai(format!("failed to run curl: {e}")))?;

@@ -11,7 +11,9 @@ use crate::skills::Skill;
 /// A hollow cylinder (tube) with flat annular caps at both ends.
 pub fn tube(outer_r: f64, inner_r: f64, h: f64, seg: usize) -> Result<Mesh> {
     if inner_r >= outer_r {
-        return Err(CadError::Geometry("inner radius must be < outer radius".into()));
+        return Err(CadError::Geometry(
+            "inner radius must be < outer radius".into(),
+        ));
     }
     let seg = seg.max(6);
     let mut m = Mesh::new();
@@ -76,12 +78,16 @@ impl Skill for WasherSkill {
         if thickness > 0.0 {
             let m = tube(outer, inner, thickness, seg)?;
             scene.add(name.clone(), Geometry::Mesh(m));
-            Ok(format!("washer '{name}': Ø{outer}/Ø{inner} × {thickness}mm solid"))
+            Ok(format!(
+                "washer '{name}': Ø{outer}/Ø{inner} × {thickness}mm solid"
+            ))
         } else {
             let mut shape = Shape::circle(outer, seg);
             shape.add_hole(Shape::circle(inner, seg).contours.remove(0));
             scene.add(name.clone(), Geometry::Shape(shape));
-            Ok(format!("washer '{name}': ring outer r{outer} / inner r{inner}"))
+            Ok(format!(
+                "washer '{name}': ring outer r{outer} / inner r{inner}"
+            ))
         }
     }
 }

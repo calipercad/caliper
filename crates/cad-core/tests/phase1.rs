@@ -164,7 +164,10 @@ fn hole_is_manifold() {
     let shape = rect.difference(&circle).unwrap();
 
     let mesh = geom3d::extrude(&shape, 5.0).unwrap();
-    assert!(mesh.is_closed_manifold(), "bored solid is a closed manifold");
+    assert!(
+        mesh.is_closed_manifold(),
+        "bored solid is a closed manifold"
+    );
     assert_eq!(mesh.euler_characteristic(), 0, "genus 1 ⇒ χ = 0");
     assert!(signed_volume(&mesh) > 0.0, "outward normals");
 }
@@ -277,7 +280,10 @@ fn exporter_primitives() {
     let arc = Shape::arc(5.0, 0.0, 90.0, 48);
     let dxf_a = dxf::to_dxf(&[Item::new("a", &arc)], 1.0);
     assert!(dxf_a.contains("ARC"), "DXF ARC entity");
-    assert!(dxf_a.contains("\n50\n") && dxf_a.contains("\n51\n"), "ARC angles");
+    assert!(
+        dxf_a.contains("\n50\n") && dxf_a.contains("\n51\n"),
+        "ARC angles"
+    );
 
     // A boolean result is a Polyline ⇒ falls back to LWPOLYLINE / <path>.
     let a = square(0.0, 0.0, 2.0, 2.0);

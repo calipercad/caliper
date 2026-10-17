@@ -31,7 +31,12 @@ pub struct Item<'a> {
 impl<'a> Item<'a> {
     /// A plain item with no layer/role (lands on the default layer).
     pub fn new(name: &'a str, shape: &'a Shape) -> Self {
-        Item { name, shape, layer: None, role: None }
+        Item {
+            name,
+            shape,
+            layer: None,
+            role: None,
+        }
     }
 
     /// Effective export layer: explicit `layer`, else `role`, else `"0"`.
@@ -60,7 +65,9 @@ fn collect_shapes<'a>(scene: &'a Scene, target: Option<&str>) -> Result<Vec<(&'a
     let mut out = Vec::new();
     match target {
         Some(name) => {
-            let e = scene.get(name).ok_or_else(|| CadError::NotFound(name.into()))?;
+            let e = scene
+                .get(name)
+                .ok_or_else(|| CadError::NotFound(name.into()))?;
             match &e.geom {
                 Geometry::Shape(s) => out.push((e.name.as_str(), s)),
                 Geometry::Mesh(_) => {
@@ -97,7 +104,9 @@ fn collect_items<'a>(scene: &'a Scene, target: Option<&str>) -> Result<Vec<Item<
     let mut out = Vec::new();
     match target {
         Some(name) => {
-            let e = scene.get(name).ok_or_else(|| CadError::NotFound(name.into()))?;
+            let e = scene
+                .get(name)
+                .ok_or_else(|| CadError::NotFound(name.into()))?;
             match &e.geom {
                 Geometry::Shape(_) => push(&mut out, e),
                 Geometry::Mesh(_) => {
@@ -122,7 +131,9 @@ fn collect_meshes<'a>(scene: &'a Scene, target: Option<&str>) -> Result<Vec<(&'a
     let mut out = Vec::new();
     match target {
         Some(name) => {
-            let e = scene.get(name).ok_or_else(|| CadError::NotFound(name.into()))?;
+            let e = scene
+                .get(name)
+                .ok_or_else(|| CadError::NotFound(name.into()))?;
             match &e.geom {
                 Geometry::Mesh(m) => out.push((e.name.as_str(), m)),
                 Geometry::Shape(_) => {
@@ -161,9 +172,11 @@ pub fn export(scene: &Scene, format: &str, path: &str, target: Option<&str>) -> 
         match format.as_str() {
             "svg" => svg::to_svg(&collect_items(scene, target)?, mm),
             "dxf" => dxf::to_dxf(&collect_items(scene, target)?, mm),
-            "gcode" => {
-                gcode::to_gcode(&collect_shapes(scene, target)?, mm, &gcode::GcodeOptions::default())
-            }
+            "gcode" => gcode::to_gcode(
+                &collect_shapes(scene, target)?,
+                mm,
+                &gcode::GcodeOptions::default(),
+            ),
             other => return Err(CadError::Arg(format!("unknown format '{other}'"))),
         }
     };
@@ -173,5 +186,8 @@ pub fn export(scene: &Scene, format: &str, path: &str, target: Option<&str>) -> 
     } else {
         collect_shapes(scene, target)?.len()
     };
-    Ok(format!("wrote {count} entit{} to {path} ({format})", if count == 1 { "y" } else { "ies" }))
+    Ok(format!(
+        "wrote {count} entit{} to {path} ({format})",
+        if count == 1 { "y" } else { "ies" }
+    ))
 }

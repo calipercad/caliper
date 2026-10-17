@@ -362,8 +362,16 @@ pub fn boolean(a: &Shape, b: &Shape, op: BoolOp) -> Result<Shape> {
         let mid = (fs + fe) * 0.5;
         let pl = mid + nrm * eps;
         let pr = mid - nrm * eps;
-        let res_l = predicate(op, winding_nonzero(pl, &a_refs), winding_nonzero(pl, &b_refs));
-        let res_r = predicate(op, winding_nonzero(pr, &a_refs), winding_nonzero(pr, &b_refs));
+        let res_l = predicate(
+            op,
+            winding_nonzero(pl, &a_refs),
+            winding_nonzero(pl, &b_refs),
+        );
+        let res_r = predicate(
+            op,
+            winding_nonzero(pr, &a_refs),
+            winding_nonzero(pr, &b_refs),
+        );
         if res_l == res_r {
             continue; // interior on neither / both sides: not a boundary
         }

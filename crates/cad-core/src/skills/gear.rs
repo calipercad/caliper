@@ -43,9 +43,7 @@ impl Skill for GearSkill {
             shape.add_hole(hole);
         }
 
-        let name = args
-            .name()
-            .unwrap_or_else(|| scene.auto_name("gear"));
+        let name = args.name().unwrap_or_else(|| scene.auto_name("gear"));
 
         if thickness > 0.0 {
             let mesh = extrude(&shape, thickness)?;

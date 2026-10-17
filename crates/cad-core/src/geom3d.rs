@@ -198,8 +198,7 @@ impl Mesh {
                 let u = i as f64 / seg as f64;
                 let theta = u * TAU;
                 let (st, ct) = theta.sin_cos();
-                m.verts
-                    .push(Vec3::new(r * sp * ct, r * sp * st, r * cp));
+                m.verts.push(Vec3::new(r * sp * ct, r * sp * st, r * cp));
             }
         }
         let stride = seg + 1;
@@ -328,8 +327,7 @@ pub fn extrude(shape: &Shape, height: f64) -> Result<Mesh> {
                 "outer contour needs at least 3 points to extrude".into(),
             ));
         }
-        let holes_slices: Vec<&[Vec2]> =
-            region.holes.iter().map(|h| h.points.as_slice()).collect();
+        let holes_slices: Vec<&[Vec2]> = region.holes.iter().map(|h| h.points.as_slice()).collect();
         // `ring` = outer verts followed by each hole's verts, in the CW order
         // normalize produced. `tris2d` are CCW index triples into `ring`.
         let (ring, tris2d) = triangulate_with_holes(&region.outer.points, &holes_slices)?;
@@ -660,7 +658,9 @@ fn point_in_tri_strict(p: Vec2, a: Vec2, b: Vec2, c: Vec2) -> bool {
 /// the Z axis to produce a solid of revolution (lathe).
 pub fn revolve(profile: &[Vec2], seg: usize) -> Result<Mesh> {
     if profile.len() < 2 {
-        return Err(CadError::Geometry("revolve profile needs >= 2 points".into()));
+        return Err(CadError::Geometry(
+            "revolve profile needs >= 2 points".into(),
+        ));
     }
     let seg = seg.max(3);
     let mut m = Mesh::new();

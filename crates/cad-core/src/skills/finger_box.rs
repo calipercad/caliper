@@ -40,14 +40,24 @@ impl Skill for FingerBoxSkill {
         let bottom = panel(
             w,
             d,
-            [edge(true, false), edge(true, false), edge(true, false), edge(true, false)],
+            [
+                edge(true, false),
+                edge(true, false),
+                edge(true, false),
+                edge(true, false),
+            ],
             t,
             finger,
         );
         let front = panel(
             w,
             h,
-            [edge(true, true), edge(true, false), edge(false, false), edge(true, false)],
+            [
+                edge(true, true),
+                edge(true, false),
+                edge(false, false),
+                edge(true, false),
+            ],
             t,
             finger,
         );
@@ -55,7 +65,12 @@ impl Skill for FingerBoxSkill {
         let left = panel(
             d,
             h,
-            [edge(true, true), edge(true, true), edge(false, false), edge(true, true)],
+            [
+                edge(true, true),
+                edge(true, true),
+                edge(false, false),
+                edge(true, true),
+            ],
             t,
             finger,
         );
@@ -80,13 +95,7 @@ impl Skill for FingerBoxSkill {
         place(scene, format!("{prefix}_right"), right);
         let mut count = 5;
         if lid {
-            let top = panel(
-                w,
-                d,
-                [edge(false, false); 4],
-                t,
-                finger,
-            );
+            let top = panel(w, d, [edge(false, false); 4], t, finger);
             place(scene, format!("{prefix}_lid"), top);
             count += 1;
         }
@@ -130,7 +139,14 @@ fn panel(w: f64, h: f64, edges: [EdgeSpec; 4], depth: f64, finger: f64) -> Shape
 
 /// Castellated edge from `a` to `b`. "Out" segments are pushed by `depth` along
 /// `out_normal`; the edge starts and ends flush so corners stay clean.
-fn fingered_edge(a: Vec2, b: Vec2, out_normal: Vec2, depth: f64, finger: f64, phase: bool) -> Vec<Vec2> {
+fn fingered_edge(
+    a: Vec2,
+    b: Vec2,
+    out_normal: Vec2,
+    depth: f64,
+    finger: f64,
+    phase: bool,
+) -> Vec<Vec2> {
     let len = (b - a).len();
     if len < 1e-6 {
         return vec![a, b];

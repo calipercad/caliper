@@ -11,7 +11,10 @@ pub fn to_ascii_stl(meshes: &[(&str, &Mesh)], mm: f64) -> String {
             let b = mesh.verts[t[1]] * mm;
             let c = mesh.verts[t[2]] * mm;
             let n = (b - a).cross(c - a).normalized();
-            out.push_str(&format!("  facet normal {:.6} {:.6} {:.6}\n", n.x, n.y, n.z));
+            out.push_str(&format!(
+                "  facet normal {:.6} {:.6} {:.6}\n",
+                n.x, n.y, n.z
+            ));
             out.push_str("    outer loop\n");
             for v in [a, b, c] {
                 out.push_str(&format!("      vertex {:.6} {:.6} {:.6}\n", v.x, v.y, v.z));

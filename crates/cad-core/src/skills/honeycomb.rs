@@ -54,7 +54,9 @@ impl Skill for HoneycombSkill {
 
         let name = args.name().unwrap_or_else(|| scene.auto_name("honeycomb"));
         scene.add(name.clone(), Geometry::Shape(shape));
-        Ok(format!("honeycomb '{name}': {count} cells in {w}×{h}mm plate"))
+        Ok(format!(
+            "honeycomb '{name}': {count} cells in {w}×{h}mm plate"
+        ))
     }
 }
 

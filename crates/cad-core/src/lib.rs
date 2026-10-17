@@ -101,7 +101,8 @@ mod tests {
         // A trailing bare `closed` must be treated as a flag, not miscounted as
         // a coordinate, and the resulting contour must be closed.
         let mut it = Interpreter::new();
-        it.exec_line("path 0 0  10 0  10 5  0 5  closed name=p").unwrap();
+        it.exec_line("path 0 0  10 0  10 5  0 5  closed name=p")
+            .unwrap();
         match &it.scene.get("p").unwrap().geom {
             scene::Geometry::Shape(s) => {
                 assert_eq!(s.contours[0].points.len(), 4);

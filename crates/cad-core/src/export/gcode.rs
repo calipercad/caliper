@@ -5,11 +5,11 @@
 use crate::geom2d::Shape;
 
 pub struct GcodeOptions {
-    pub feed: f64,      // cutting feed rate (mm/min)
-    pub travel: f64,    // rapid feed rate (mm/min)
-    pub z_up: f64,      // safe/travel height (mm)
-    pub z_down: f64,    // cutting depth (mm)
-    pub spindle: bool,  // emit M3/M5 (spindle/laser on-off)
+    pub feed: f64,     // cutting feed rate (mm/min)
+    pub travel: f64,   // rapid feed rate (mm/min)
+    pub z_up: f64,     // safe/travel height (mm)
+    pub z_down: f64,   // cutting depth (mm)
+    pub spindle: bool, // emit M3/M5 (spindle/laser on-off)
 }
 
 impl Default for GcodeOptions {

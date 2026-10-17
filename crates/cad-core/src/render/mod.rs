@@ -9,12 +9,7 @@ use crate::math::{rad, Mat4, Vec2};
 use crate::scene::{Geometry, Scene};
 
 /// Braille dot bitmasks indexed as `MASK[dy][dx]` (dy: 0..4, dx: 0..2).
-const MASK: [[u8; 2]; 4] = [
-    [0x01, 0x08],
-    [0x02, 0x10],
-    [0x04, 0x20],
-    [0x40, 0x80],
-];
+const MASK: [[u8; 2]; 4] = [[0x01, 0x08], [0x02, 0x10], [0x04, 0x20], [0x40, 0x80]];
 
 pub struct BrailleCanvas {
     cols: usize,

@@ -203,7 +203,8 @@ impl Interpreter {
         let r = args.pos_f64(0)?;
         let seg = args.usize_or("seg", 64)?;
         let name = self.name_or_auto(args, "circle");
-        self.scene.add(name.clone(), Geometry::Shape(Shape::circle(r, seg)));
+        self.scene
+            .add(name.clone(), Geometry::Shape(Shape::circle(r, seg)));
         self.apply_attrs(&name, args);
         Ok(format!("circle '{name}' r{r}"))
     }
@@ -320,9 +321,7 @@ impl Interpreter {
             let e = self.scene.resolve(target.as_deref())?;
             match &e.geom {
                 Geometry::Shape(s) => (e.name.clone(), s.clone()),
-                Geometry::Mesh(_) => {
-                    return Err(CadError::Arg("extrude needs a 2D shape".into()))
-                }
+                Geometry::Mesh(_) => return Err(CadError::Arg("extrude needs a 2D shape".into())),
             }
         };
         let mesh = geom3d::extrude(&shape, height)?;
@@ -343,9 +342,10 @@ impl Interpreter {
                 }
             }
         };
-        let profile = &shape.contours.first().ok_or_else(|| {
-            CadError::Geometry("revolve target has no contour".into())
-        })?;
+        let profile = &shape
+            .contours
+            .first()
+            .ok_or_else(|| CadError::Geometry("revolve target has no contour".into()))?;
         let mesh = geom3d::revolve(&profile.points, seg)?;
         let name = args.name().unwrap_or_else(|| format!("{src_name}_rev"));
         self.scene.add(name.clone(), Geometry::Mesh(mesh));
@@ -607,8 +607,15 @@ impl Interpreter {
         if self.scene.entities.is_empty() {
             return "(scene is empty)\n".into();
         }
-        let mut out = format!("{} entit{}:\n", self.scene.entities.len(),
-            if self.scene.entities.len() == 1 { "y" } else { "ies" });
+        let mut out = format!(
+            "{} entit{}:\n",
+            self.scene.entities.len(),
+            if self.scene.entities.len() == 1 {
+                "y"
+            } else {
+                "ies"
+            }
+        );
         let sel = self.scene.selected.clone();
         for e in &self.scene.entities {
             let marker = if sel.as_deref() == Some(e.name.as_str()) {
@@ -619,13 +626,22 @@ impl Interpreter {
             let dims = match &e.geom {
                 Geometry::Shape(s) => {
                     let b = s.bbox();
-                    format!("2D  {:.1}×{:.1}{}", b.width(), b.height(), self.scene.units.suffix())
+                    format!(
+                        "2D  {:.1}×{:.1}{}",
+                        b.width(),
+                        b.height(),
+                        self.scene.units.suffix()
+                    )
                 }
                 Geometry::Mesh(m) => {
                     let sz = m.bbox().size();
                     format!(
                         "3D  {:.1}×{:.1}×{:.1}{}  ({} tris)",
-                        sz.x, sz.y, sz.z, self.scene.units.suffix(), m.triangle_count()
+                        sz.x,
+                        sz.y,
+                        sz.z,
+                        self.scene.units.suffix(),
+                        m.triangle_count()
                     )
                 }
             };
@@ -642,7 +658,13 @@ impl Interpreter {
                     let b = s.bbox();
                     format!(
                         "'{}' bbox: ({:.2},{:.2}) → ({:.2},{:.2}), size {:.2}×{:.2}{}\n",
-                        e.name, b.min.x, b.min.y, b.max.x, b.max.y, b.width(), b.height(),
+                        e.name,
+                        b.min.x,
+                        b.min.y,
+                        b.max.x,
+                        b.max.y,
+                        b.width(),
+                        b.height(),
                         self.scene.units.suffix()
                     )
                 }
@@ -651,7 +673,11 @@ impl Interpreter {
                     let s = b.size();
                     format!(
                         "'{}' bbox size {:.2}×{:.2}×{:.2}{}\n",
-                        e.name, s.x, s.y, s.z, self.scene.units.suffix()
+                        e.name,
+                        s.x,
+                        s.y,
+                        s.z,
+                        self.scene.units.suffix()
                     )
                 }
             },
@@ -662,10 +688,18 @@ impl Interpreter {
     fn list_skills(&self) -> String {
         let mut out = String::from("Built-in skills (invoke with `skill <name> ...`):\n");
         for s in self.skills.iter() {
-            out.push_str(&format!("  {:<12} {}\n      {}\n", s.name(), s.summary(), s.usage()));
+            out.push_str(&format!(
+                "  {:<12} {}\n      {}\n",
+                s.name(),
+                s.summary(),
+                s.usage()
+            ));
         }
         if let Some(dir) = &self.user_skill_dir {
-            out.push_str(&format!("\nUser script-skills directory: {}\n", dir.display()));
+            out.push_str(&format!(
+                "\nUser script-skills directory: {}\n",
+                dir.display()
+            ));
             if let Ok(rd) = std::fs::read_dir(dir) {
                 let mut any = false;
                 for entry in rd.flatten() {
