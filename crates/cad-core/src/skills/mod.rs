@@ -12,10 +12,13 @@ use crate::args::Args;
 use crate::error::Result;
 use crate::scene::Scene;
 
+pub mod craft;
 pub mod finger_box;
 pub mod gear;
 pub mod hardware;
 pub mod honeycomb;
+pub mod maker;
+pub mod mechanical;
 
 /// A parametric generator. `run` mutates the scene and returns a short summary
 /// (typically the created entity name) for display.
@@ -45,6 +48,22 @@ impl SkillRegistry {
         r.register(Box::new(honeycomb::HoneycombSkill));
         r.register(Box::new(hardware::WasherSkill));
         r.register(Box::new(hardware::StandoffSkill));
+        // ---- Phase 5 library ----
+        r.register(Box::new(mechanical::FlangeSkill));
+        r.register(Box::new(mechanical::SprocketSkill));
+        r.register(Box::new(mechanical::RackSkill));
+        r.register(Box::new(mechanical::PulleySkill));
+        r.register(Box::new(mechanical::CamSkill));
+        r.register(Box::new(maker::GridfinitySkill));
+        r.register(Box::new(maker::EnclosureSkill));
+        r.register(Box::new(maker::StandoffGridSkill));
+        r.register(Box::new(maker::KnobSkill));
+        r.register(Box::new(maker::CableClipSkill));
+        r.register(Box::new(craft::MonogramSkill));
+        r.register(Box::new(craft::MandalaSkill));
+        r.register(Box::new(craft::CardSkill));
+        r.register(Box::new(craft::BoxTemplateSkill));
+        r.register(Box::new(craft::LivingHingeSkill));
         r
     }
 

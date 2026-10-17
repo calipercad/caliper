@@ -24,8 +24,8 @@ foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
 | 2 | v0.3 | Text & engraving + layered cut/score/engrave export | ✅ complete |
 | 3 | v0.4 | 3D CSG, fillets/chamfers, shell/offset | ✅ complete |
 | 4 | v0.5 | Drafting & rendering (HLR, shading, views, arrays, dims) | ✅ complete |
-| 5 | v0.6 | Library explosion (15+ maker/craftsman skills) | ⬜ next |
-| 6 | v0.7 | AI copilot (inspect-iterate-repair loop) | ⬜ |
+| 5 | v0.6 | Library explosion (15+ maker/craftsman skills) | ✅ complete |
+| 6 | v0.7 | AI copilot (inspect-iterate-repair loop) | ⬜ next |
 | 7 | v0.8 | Interop & UX (import, undo, watch, richer export) | ⬜ |
 | 8 | v1.0 | Extensibility & release (plugins, fuzz, CI, packaging) | ⬜ |
 
@@ -231,10 +231,12 @@ Phase 1/3 (call it out in the skill's doc).
   net), `stencil`, `monogram` (text + frame), `mandala` (polar-arrayed motif).
 
 **Work items.**
-- [ ] Implement skills in dependency order (booleans-dependent ones after P1/P3).
-- [ ] A `docs/SKILLS.md` gallery that renders each skill's braille preview.
-- [ ] Golden tests: each skill runs with defaults and produces expected entity
-      counts / bbox; a smoke test iterating `SkillRegistry`.
+- [x] Implemented 15 new skills across 3 modules (`mechanical`/`maker`/`craft`):
+      flange, sprocket, rack, pulley, cam; gridfinity, enclosure, standoff_grid,
+      knob, cable_clip; monogram, mandala, card, box_template, living_hinge.
+- [x] `docs/SKILLS.md` gallery (grouped tables + braille previews).
+- [x] `all_skills_run_at_defaults` smoke test iterating `SkillRegistry` (≥20
+      built-ins), gridfinity-manifold checkpoint, + targeted shape checks.
 
 **Checkpoint.** `skills` lists ≥15 built-ins besides the original five; every
 skill runs at defaults in a single smoke test; the gallery doc builds. Demo:

@@ -46,7 +46,8 @@ cad-assist/                 workspace root (no package)
 │   │       │   └── csg.rs      BSP mesh booleans + shell (3D CSG)
 │   │       ├── scene.rs        Units, Geometry, Entity, Scene
 │   │       ├── args.rs         positional/option arg parsing
-│   │       ├── skills/         Skill trait + registry + built-ins
+│   │       ├── skills/         Skill trait + registry + 20 built-ins
+│   │       │                     (gear/honeycomb/…, mechanical/maker/craft)
 │   │       ├── export/         svg, dxf, stl, obj, gcode writers
 │   │       ├── render/         Braille/half-block canvases, wire/HLR/shade, views
 │   │       ├── ai/             natural-language → script bridge (curl/jq)

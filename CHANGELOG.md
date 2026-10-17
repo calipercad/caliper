@@ -3,6 +3,27 @@
 All notable changes to cad-assist are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## [0.6.0] — Library explosion (15 new skills)
+
+Fifteen new parametric skills — the payoff of the geometry stack built in
+Phases 1–4 — bringing the built-in library to 20.
+
+### Added
+- **Mechanical** (`skills/mechanical.rs`, accurate engineering profiles):
+  `flange` (bolt-circle disc), `sprocket` (ANSI B29.1 roller-chain tooth form),
+  `rack` (trapezoidal spur rack), `pulley` (GT2/HTD timing-belt grooves), `cam`
+  (harmonic/cycloidal radial cam). Flat shapes, or solids with `thickness=`.
+- **Maker / 3D** (`skills/maker.rs`): `gridfinity` (42 mm-grid bin, closed
+  manifold), `enclosure` (two-part project box), `standoff_grid`, `knob` (fluted,
+  D-shaft bore), `cable_clip`.
+- **Craft / laser 2D** (`skills/craft.rs`): `monogram` (framed stroke text),
+  `mandala` (polar petal motif), `card` (fold-score net), `box_template` (tuck-box
+  net), `living_hinge` (staggered flex slots). Cut/score/engrave on role layers.
+- **`docs/SKILLS.md`** — the skill gallery (grouped tables + braille previews).
+- **Tests**: `crates/cad-core/tests/phase5.rs` — `all_skills_run_at_defaults`
+  (≥20 built-ins, each builds geometry from a bare `skill <name>`), the
+  gridfinity-manifold checkpoint, and targeted shape checks.
+
 ## [0.5.0] — Drafting & rendering
 
 The terminal preview now reads like an engineering tool, plus the layout
@@ -159,6 +180,7 @@ First working release: a complete, tested vertical slice of the tool.
 - `path … closed` now treats `closed` as a flag rather than miscounting it as a
   coordinate; bare flags are recognised generally (`Args::flag`).
 
+[0.6.0]: #
 [0.5.0]: #
 [0.4.0]: #
 [0.3.0]: #

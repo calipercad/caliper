@@ -46,12 +46,30 @@ OPERATIONS (default target = current selection; override with target=<id>)
   (transforms/array/mirror act on a whole group when target= names a group)
   (rounded/beveled 3D edges: fillet/chamfer the 2D profile, then extrude)
 
-SKILLS (parametric generators — run `skills` to list)
+SKILLS (parametric generators — run `skills` for the full list + usage)
   skill gear teeth=<n> module=<mm> [pressure=20] [bore=<mm>] [thickness=<mm>]
   skill boxjoint width= depth= height= thickness= [finger=] [lid] [gap=10]
   skill honeycomb width= height= [cell=10] [wall=2] [margin=5]
   skill washer outer=<r> inner=<r> [thickness=<mm>]
   skill standoff outer=<r> bore=<r> height=<mm>
+  — mechanical —
+  skill flange [outer=60] [bore=20] [bolt_circle=45] [bolt_dia=5] [bolts=4] [thickness=0]
+  skill sprocket [teeth=17] [pitch=12.7] [roller=7.95] [bore=10] [thickness=0]
+  skill rack [teeth=10] [module=2] [pressure=20] [height=10] [thickness=0]
+  skill pulley [teeth=20] [belt=GT2|HTD3M|HTD5M] [bore=5] [thickness=0]
+  skill cam [base=20] [lift=10] [motion=harmonic|cycloidal] [rise_deg=120] [dwell_deg=60] [bore=6]
+  — maker / 3D —
+  skill gridfinity [units_x=2] [units_y=1] [height_u=3]
+  skill enclosure [width=80] [depth=60] [height=30] [wall=2] [lid] [standoffs]
+  skill standoff_grid [nx=3] [ny=2] [pitch=20] [outer=6] [bore=3] [height=10] [base]
+  skill knob [diameter=30] [height=15] [flutes=12] [bore=6] [d_flat=0]
+  skill cable_clip [cable=6] [thickness=3] [depth=8] [screw=3]
+  — craft / laser —
+  skill monogram [text=AB] [size=30] [frame=circle|rect|none]
+  skill mandala [petals=12] [rings=2] [r=40]
+  skill card [width=100] [height=70] [fold=left|top] [window=0]
+  skill box_template [width=60] [depth=40] [height=30] [tab=10]
+  skill living_hinge [width=80] [height=40] [slot=15] [gap=3] [rows=0]
   skill <name> ...                                 also runs ~/.cad-assist/skills/<name>.cad
 
 SCENE / INSPECTION
