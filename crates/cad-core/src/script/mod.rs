@@ -12,7 +12,7 @@ use crate::geom2d::text::{self, Align};
 use crate::geom2d::Shape;
 use crate::geom3d::{self, Mesh};
 use crate::math::{rad, Mat4, Vec2, Vec3};
-use crate::render::{self, RenderOptions};
+use crate::render::{self, RenderMode, RenderOptions};
 use crate::scene::{Geometry, Scene, Units};
 use crate::skills::SkillRegistry;
 use std::path::PathBuf;
@@ -111,6 +111,11 @@ impl Interpreter {
             "translate" => self.op_translate(&args),
             "rotate" => self.op_rotate(&args),
             "scale" => self.op_scale(&args),
+            "array" => self.op_array(&args),
+            "mirror" => self.op_mirror(&args),
+            "group" => self.op_group(&args),
+            "ungroup" => self.op_ungroup(&args),
+            "dim" => self.op_dim(&args),
             // ---- 2D boolean & edge ops (deterministic → recorded in history) ----
             "union" => self.op_bool(&args, BoolOp::Union),
             "subtract" => self.op_bool(&args, BoolOp::Difference),
@@ -353,15 +358,43 @@ impl Interpreter {
         Ok(format!("revolved '{src_name}' → '{name}'"))
     }
 
+    /// Apply a transform to every named entity (a group's members or a single
+    /// entity). Reflections (`reflect`) also reverse mesh winding so solids keep
+    /// outward normals.
+    fn transform_members(&mut self, names: &[String], m: &Mat4, reflect: bool) {
+        for n in names {
+            if let Some(e) = self.scene.get_mut(n) {
+                e.geom.transform(m);
+                if reflect {
+                    if let Geometry::Mesh(me) = &mut e.geom {
+                        for t in &mut me.tris {
+                            t.swap(1, 2);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn members_label(names: &[String]) -> String {
+        if names.len() == 1 {
+            format!("'{}'", names[0])
+        } else {
+            format!("{} entities", names.len())
+        }
+    }
+
     fn op_translate(&mut self, args: &Args) -> Result<String> {
         let x = args.pos_f64(0)?;
         let y = args.pos_f64_or(1, 0.0)?;
         let z = args.pos_f64_or(2, 0.0)?;
         let target = args.get_str("target").map(|s| s.to_string());
-        let e = self.scene.resolve_mut(target.as_deref())?;
-        let name = e.name.clone();
-        e.geom.transform(&Mat4::translation(Vec3::new(x, y, z)));
-        Ok(format!("translated '{name}' by ({x}, {y}, {z})"))
+        let names = self.scene.member_names(target.as_deref())?;
+        self.transform_members(&names, &Mat4::translation(Vec3::new(x, y, z)), false);
+        Ok(format!(
+            "translated {} by ({x}, {y}, {z})",
+            Self::members_label(&names)
+        ))
     }
 
     fn op_rotate(&mut self, args: &Args) -> Result<String> {
@@ -369,16 +402,11 @@ impl Interpreter {
         let axis = args.str_or("axis", "z").to_string();
         let about = args.str_or("about", "center").to_string();
         let target = args.get_str("target").map(|s| s.to_string());
-
-        let e = self.scene.resolve_mut(target.as_deref())?;
-        let name = e.name.clone();
+        let names = self.scene.member_names(target.as_deref())?;
         let pivot = if about == "origin" {
             Vec3::ZERO
         } else {
-            match &e.geom {
-                Geometry::Shape(s) => s.bbox().center().to3(),
-                Geometry::Mesh(m) => m.bbox().center(),
-            }
+            self.scene.group_center(&names)
         };
         let rot = match axis.as_str() {
             "x" => Mat4::rotation_x(rad(deg)),
@@ -388,29 +416,298 @@ impl Interpreter {
         let m = Mat4::translation(pivot)
             .mul(&rot)
             .mul(&Mat4::translation(-pivot));
-        e.geom.transform(&m);
-        Ok(format!("rotated '{name}' {deg}° about {axis} ({about})"))
+        self.transform_members(&names, &m, false);
+        Ok(format!(
+            "rotated {} {deg}° about {axis} ({about})",
+            Self::members_label(&names)
+        ))
     }
 
     fn op_scale(&mut self, args: &Args) -> Result<String> {
         let s = args.pos_f64(0)?;
         let about = args.str_or("about", "center").to_string();
         let target = args.get_str("target").map(|s| s.to_string());
-        let e = self.scene.resolve_mut(target.as_deref())?;
-        let name = e.name.clone();
+        let names = self.scene.member_names(target.as_deref())?;
         let pivot = if about == "origin" {
             Vec3::ZERO
         } else {
-            match &e.geom {
-                Geometry::Shape(sh) => sh.bbox().center().to3(),
-                Geometry::Mesh(m) => m.bbox().center(),
-            }
+            self.scene.group_center(&names)
         };
         let m = Mat4::translation(pivot)
             .mul(&Mat4::scale(Vec3::new(s, s, s)))
             .mul(&Mat4::translation(-pivot));
-        e.geom.transform(&m);
-        Ok(format!("scaled '{name}' ×{s} ({about})"))
+        self.transform_members(&names, &m, false);
+        Ok(format!(
+            "scaled {} ×{s} ({about})",
+            Self::members_label(&names)
+        ))
+    }
+
+    /// `mirror [axis=x|y|z] [about=center|origin] [copy] [target=]` — reflect a
+    /// shape/mesh (or a whole group). `copy` keeps the original and adds a
+    /// mirrored duplicate instead of reflecting in place.
+    fn op_mirror(&mut self, args: &Args) -> Result<String> {
+        let axis = args.str_or("axis", "x").to_string();
+        let about = args.str_or("about", "center").to_string();
+        let copy = args.flag("copy");
+        let target = args.get_str("target").map(|s| s.to_string());
+        let names = self.scene.member_names(target.as_deref())?;
+        let pivot = if about == "origin" {
+            Vec3::ZERO
+        } else {
+            self.scene.group_center(&names)
+        };
+        let sv = match axis.as_str() {
+            "y" => Vec3::new(1.0, -1.0, 1.0),
+            "z" => Vec3::new(1.0, 1.0, -1.0),
+            _ => Vec3::new(-1.0, 1.0, 1.0),
+        };
+        let m = Mat4::translation(pivot)
+            .mul(&Mat4::scale(sv))
+            .mul(&Mat4::translation(-pivot));
+        if copy {
+            // Duplicate each member, reflect the copy, add under a fresh name.
+            let sources: Vec<(String, Geometry)> = names
+                .iter()
+                .filter_map(|n| self.scene.get(n).map(|e| (n.clone(), e.geom.clone())))
+                .collect();
+            for (n, mut g) in sources {
+                g.transform(&m);
+                if let Geometry::Mesh(me) = &mut g {
+                    for t in &mut me.tris {
+                        t.swap(1, 2);
+                    }
+                }
+                self.scene.add(format!("{n}_mir"), g);
+            }
+            Ok(format!(
+                "mirrored copy of {} ({axis})",
+                Self::members_label(&names)
+            ))
+        } else {
+            self.transform_members(&names, &m, true);
+            Ok(format!("mirrored {} ({axis})", Self::members_label(&names)))
+        }
+    }
+
+    /// `array <n> [kind=linear|polar|grid] [dx= dy= dz=] [nx= ny=]
+    /// [about=center|origin] [target=] [name=]` — replicate one entity. The
+    /// original stays as instance 0; copies are added (and tagged into `name=`'s
+    /// group when given). Polar spins copies about Z to close a full circle.
+    fn op_array(&mut self, args: &Args) -> Result<String> {
+        let kind = args.str_or("kind", "linear").to_string();
+        let target = args.get_str("target").map(|s| s.to_string());
+        let src = self.scene.resolve(target.as_deref())?.name.clone();
+        let base = self.scene.get(&src).unwrap().geom.clone();
+        let group = args.name();
+
+        // Transforms for the ADDED instances (original is instance 0).
+        let mut transforms: Vec<Mat4> = Vec::new();
+        match kind.as_str() {
+            "polar" => {
+                let n = args.pos_f64(0)? as usize;
+                if n < 2 {
+                    return Err(CadError::Arg("polar array needs count >= 2".into()));
+                }
+                // Polar arrays spin about the world axis by default (the gear
+                // center); `about=center` spins each copy about the part center.
+                let about = args.str_or("about", "origin").to_string();
+                let pivot = if about == "center" {
+                    self.scene.group_center(&[src.clone()])
+                } else {
+                    Vec3::ZERO
+                };
+                for i in 1..n {
+                    let ang = 360.0 * (i as f64) / (n as f64);
+                    transforms.push(
+                        Mat4::translation(pivot)
+                            .mul(&Mat4::rotation_z(rad(ang)))
+                            .mul(&Mat4::translation(-pivot)),
+                    );
+                }
+            }
+            "grid" => {
+                let nx = args.usize_or("nx", 1)?;
+                let ny = args.usize_or("ny", 1)?;
+                let dx = args.f64_or("dx", 0.0)?;
+                let dy = args.f64_or("dy", 0.0)?;
+                for iy in 0..ny {
+                    for ix in 0..nx {
+                        if ix == 0 && iy == 0 {
+                            continue;
+                        }
+                        transforms.push(Mat4::translation(Vec3::new(
+                            dx * ix as f64,
+                            dy * iy as f64,
+                            0.0,
+                        )));
+                    }
+                }
+            }
+            _ => {
+                let n = args.pos_f64(0)? as usize;
+                if n < 2 {
+                    return Err(CadError::Arg("linear array needs count >= 2".into()));
+                }
+                let dx = args.f64_or("dx", 0.0)?;
+                let dy = args.f64_or("dy", 0.0)?;
+                let dz = args.f64_or("dz", 0.0)?;
+                for i in 1..n {
+                    transforms.push(Mat4::translation(Vec3::new(
+                        dx * i as f64,
+                        dy * i as f64,
+                        dz * i as f64,
+                    )));
+                }
+            }
+        }
+
+        // Tag the original into the group too, so the whole array moves together.
+        if let Some(g) = &group {
+            if let Some(e) = self.scene.get_mut(&src) {
+                e.group = Some(g.clone());
+            }
+        }
+        let mut count = 1usize;
+        for m in transforms {
+            let mut g = base.clone();
+            g.transform(&m);
+            let nm = self.scene.auto_name(&src);
+            self.scene.add(nm.clone(), g);
+            if let Some(gr) = &group {
+                if let Some(e) = self.scene.get_mut(&nm) {
+                    e.group = Some(gr.clone());
+                }
+            }
+            count += 1;
+        }
+        let g_note = group
+            .map(|g| format!(" in group '{g}'"))
+            .unwrap_or_default();
+        Ok(format!("arrayed '{src}' → {count} instances{g_note}"))
+    }
+
+    /// `group <a> <b> … name=<tag>` — tag entities into a group.
+    fn op_group(&mut self, args: &Args) -> Result<String> {
+        let g = args
+            .name()
+            .ok_or_else(|| CadError::Arg("group needs name=<tag>".into()))?;
+        if args.positional.is_empty() {
+            return Err(CadError::Arg("group needs entity names".into()));
+        }
+        for n in &args.positional {
+            let e = self
+                .scene
+                .get_mut(n)
+                .ok_or_else(|| CadError::NotFound(n.clone()))?;
+            e.group = Some(g.clone());
+        }
+        Ok(format!(
+            "grouped {} entities as '{g}'",
+            args.positional.len()
+        ))
+    }
+
+    /// `ungroup <tag>` — clear the group tag from its members.
+    fn op_ungroup(&mut self, args: &Args) -> Result<String> {
+        let g = args
+            .pos_str(0)
+            .ok_or_else(|| CadError::Arg("ungroup needs a group name".into()))?
+            .to_string();
+        let mut n = 0;
+        for e in &mut self.scene.entities {
+            if e.group.as_deref() == Some(&g) {
+                e.group = None;
+                n += 1;
+            }
+        }
+        if n == 0 {
+            return Err(CadError::NotFound(g));
+        }
+        Ok(format!("ungrouped '{g}' ({n} entities)"))
+    }
+
+    /// `dim <target> [name=]` — build a dimension annotation (witness lines,
+    /// dimension lines with arrowheads, and measured width/height labels via
+    /// single-stroke text) for a 2D shape's bounding box, as a new `role="dim"`
+    /// entity so exporters route it to its own layer.
+    fn op_dim(&mut self, args: &Args) -> Result<String> {
+        use crate::geom2d::Contour;
+        let target = args.get_str("target").map(|s| s.to_string());
+        let src = self.scene.resolve(target.as_deref())?.name.clone();
+        let b = match &self.scene.get(&src).unwrap().geom {
+            Geometry::Shape(s) => s.bbox(),
+            Geometry::Mesh(_) => return Err(CadError::Arg("dim needs a 2D shape".into())),
+        };
+        let w = b.width();
+        let h = b.height();
+        let unit = self.scene.units.suffix();
+        let th = (w.max(h) * 0.06).max(2.0); // text / arrow size
+        let off = th * 2.0; // dim-line offset from the shape
+
+        let mut cs: Vec<Contour> = Vec::new();
+        let line = |a: Vec2, b: Vec2| Contour::new(vec![a, b], false);
+        // Arrowhead V at `p` pointing along unit `d`.
+        let arrow = |cs: &mut Vec<Contour>, p: Vec2, d: Vec2| {
+            let back = p - d * th;
+            let n = d.perp() * (th * 0.35);
+            cs.push(Contour::new(vec![back + n, p, back - n], false));
+        };
+        // Pull a stroke-text label's contours, translated into place.
+        let label = |cs: &mut Vec<Contour>, text: &str, at: Vec2, height: f64| {
+            let mut t = text::stroke_text(text, height, Align::Center);
+            t.transform(&Mat4::translation(Vec3::new(at.x, at.y, 0.0)));
+            cs.extend(t.contours);
+        };
+
+        // Horizontal dimension (width), below the shape.
+        let yd = b.min.y - off;
+        cs.push(line(
+            Vec2::new(b.min.x, b.min.y),
+            Vec2::new(b.min.x, yd - th * 0.3),
+        ));
+        cs.push(line(
+            Vec2::new(b.max.x, b.min.y),
+            Vec2::new(b.max.x, yd - th * 0.3),
+        ));
+        cs.push(line(Vec2::new(b.min.x, yd), Vec2::new(b.max.x, yd)));
+        arrow(&mut cs, Vec2::new(b.min.x, yd), Vec2::new(1.0, 0.0));
+        arrow(&mut cs, Vec2::new(b.max.x, yd), Vec2::new(-1.0, 0.0));
+        label(
+            &mut cs,
+            &format!("{w:.1}{unit}"),
+            Vec2::new((b.min.x + b.max.x) * 0.5, yd + th * 0.4),
+            th,
+        );
+
+        // Vertical dimension (height), left of the shape.
+        let xd = b.min.x - off;
+        cs.push(line(
+            Vec2::new(b.min.x, b.min.y),
+            Vec2::new(xd - th * 0.3, b.min.y),
+        ));
+        cs.push(line(
+            Vec2::new(b.min.x, b.max.y),
+            Vec2::new(xd - th * 0.3, b.max.y),
+        ));
+        cs.push(line(Vec2::new(xd, b.min.y), Vec2::new(xd, b.max.y)));
+        arrow(&mut cs, Vec2::new(xd, b.min.y), Vec2::new(0.0, 1.0));
+        arrow(&mut cs, Vec2::new(xd, b.max.y), Vec2::new(0.0, -1.0));
+        label(
+            &mut cs,
+            &format!("{h:.1}{unit}"),
+            Vec2::new(xd - th * 0.6, (b.min.y + b.max.y) * 0.5),
+            th,
+        );
+
+        let name = args.name().unwrap_or_else(|| format!("{src}_dim"));
+        self.scene
+            .add(name.clone(), Geometry::Shape(crate::geom2d::Shape::new(cs)));
+        self.scene
+            .set_attrs(Some(&name), None, Some("dim".into()))?;
+        Ok(format!(
+            "dimensioned '{src}' → '{name}' ({w:.1}×{h:.1}{unit})"
+        ))
     }
 
     // ---- 2D boolean & edge operations --------------------------------------
@@ -788,33 +1085,110 @@ impl Interpreter {
     // ---- render / export / io ---------------------------------------------
 
     fn render(&mut self, args: &Args) -> Result<String> {
-        let target = args.pos_str(0).map(|s| s.to_string());
-        let opt = RenderOptions {
-            cols: args.usize_or("w", 80)?,
-            rows: args.usize_or("h", 30)?,
-            yaw_deg: args.f64_or("yaw", 35.0)?,
-            pitch_deg: args.f64_or("pitch", 25.0)?,
-        };
-        // Choose mode: explicit, else by target kind, else prefer 3D if present.
-        let mode = args.get_str("mode").map(|s| s.to_string());
-        let mode = mode.unwrap_or_else(|| {
-            if let Some(t) = target.as_deref() {
-                match self.scene.get(t).map(|e| e.geom.kind()) {
-                    Some("3d") => "3d".into(),
-                    _ => "2d".into(),
-                }
-            } else if !self.scene.bbox3().is_empty() {
-                "3d".into()
-            } else {
-                "2d".into()
+        let mut target = args.pos_str(0).map(|s| s.to_string());
+
+        // A group tag isn't an entity: render the whole scene (which holds the
+        // group) rather than nothing.
+        if let Some(t) = target.as_deref() {
+            let is_group = self.scene.get(t).is_none()
+                && self
+                    .scene
+                    .entities
+                    .iter()
+                    .any(|e| e.group.as_deref() == Some(t));
+            if is_group {
+                target = None;
             }
-        });
-        let art = if mode == "3d" {
-            render::render_3d(&self.scene, target.as_deref(), &opt)
+        }
+
+        // 2D vs 3D: by the target's kind, else 3D if the scene has any solid.
+        let is_3d = if let Some(t) = target.as_deref() {
+            self.scene.get(t).map(|e| e.geom.kind()) == Some("3d")
         } else {
-            render::render_2d(&self.scene, target.as_deref(), &opt)
+            !self.scene.bbox3().is_empty()
         };
-        Ok(art)
+
+        let cols = args.usize_or("w", 80)?;
+        let rows = args.usize_or("h", 30)?;
+
+        if !is_3d {
+            let opt = RenderOptions {
+                cols,
+                rows,
+                ..RenderOptions::default()
+            };
+            return Ok(render::render_2d(&self.scene, target.as_deref(), &opt));
+        }
+
+        // 3D style and camera.
+        let mode = match args.str_or("mode", "wire") {
+            "hlr" => RenderMode::Hlr,
+            "shade" => RenderMode::Shade,
+            _ => RenderMode::Wire,
+        };
+        // View preset → (yaw, pitch); explicit yaw=/pitch= override.
+        let (vyaw, vpitch) = match args.str_or("view", "iso") {
+            "top" => (0.0, 90.0),
+            "front" => (0.0, 0.0),
+            "right" => (90.0, 0.0),
+            _ => (35.0, 25.0),
+        };
+        let yaw = if args.get_str("yaw").is_some() {
+            args.f64_or("yaw", vyaw)?
+        } else {
+            vyaw
+        };
+        let pitch = if args.get_str("pitch").is_some() {
+            args.f64_or("pitch", vpitch)?
+        } else {
+            vpitch
+        };
+
+        // Multi-view sheet: four viewports tiled 2×2 (shade coerced to wire).
+        if args.str_or("layout", "single") == "views" {
+            let tile_mode = if mode == RenderMode::Shade {
+                RenderMode::Wire
+            } else {
+                mode
+            };
+            let views = [
+                ("top", 0.0, 90.0),
+                ("front", 0.0, 0.0),
+                ("right", 90.0, 0.0),
+                ("iso", 35.0, 25.0),
+            ];
+            let blocks: Vec<(String, String)> = views
+                .iter()
+                .map(|&(label, y, p)| {
+                    let opt = RenderOptions {
+                        cols: cols / 2,
+                        rows: rows / 2,
+                        yaw_deg: y,
+                        pitch_deg: p,
+                        mode: tile_mode,
+                        axes: false,
+                        ..RenderOptions::default()
+                    };
+                    (
+                        label.to_string(),
+                        render::render_3d(&self.scene, target.as_deref(), &opt),
+                    )
+                })
+                .collect();
+            return Ok(render::tile(&blocks, 2));
+        }
+
+        let axes = mode != RenderMode::Shade && args.str_or("axes", "on") != "off";
+        let opt = RenderOptions {
+            cols,
+            rows,
+            yaw_deg: yaw,
+            pitch_deg: pitch,
+            mode,
+            axes,
+            ..RenderOptions::default()
+        };
+        Ok(render::render_3d(&self.scene, target.as_deref(), &opt))
     }
 
     fn export(&mut self, args: &Args) -> Result<String> {

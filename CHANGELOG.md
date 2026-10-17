@@ -3,6 +3,32 @@
 All notable changes to cad-assist are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## [0.5.0] — Drafting & rendering
+
+The terminal preview now reads like an engineering tool, plus the layout
+transforms and dimensioning real drawings need.
+
+### Added
+- **Hidden-line removal** (`render … mode=hlr`): faces are rasterized into a
+  per-dot depth buffer and feature edges behind surfaces are culled, so
+  wireframes read as solids.
+- **Shaded mode** (`render … mode=shade`): a new ANSI half-block canvas
+  (`▀` with per-cell fg/bg grayscale), Lambert-lit from a view-space light.
+- **View presets** (`view=iso|top|front|right`) and **multi-view sheets**
+  (`layout=views`) tiling top/front/right/iso into a 2×2 grid; a scale-bar
+  overlay (`axes=on|off`) on single 3D views.
+- **Layout ops**: `array <n> [kind=linear|polar|grid] …]` (polar spins copies
+  about Z — a tooth becomes a gear), `mirror [axis=] [about=] [copy]`, and
+  `group`/`ungroup` via a new `Entity.group` tag. Transforms (`translate`/
+  `rotate`/`scale`/`mirror`) act on a whole group when the target names one.
+- **Dimensioning**: `dim <target>` builds witness/extension lines, arrowheads,
+  and measured width/height labels (single-stroke text) as a `role="dim"`
+  entity; exporting geometry + its `*_dim` entities to SVG yields a dimensioned
+  drawing sheet (reuses the Phase 2 role layers).
+- **Tests**: `crates/cad-core/tests/phase4.rs` — polar-array checkpoint,
+  linear/grid arrays, mirror symmetry, group transforms, HLR edge culling,
+  shaded output, multi-view tiling, and the dimensioned SVG sheet.
+
 ## [0.4.0] — 3D CSG, shell, rounded edges
 
 True solid modeling: boolean operations on meshes, so `box − cylinder` yields a
@@ -133,6 +159,7 @@ First working release: a complete, tested vertical slice of the tool.
 - `path … closed` now treats `closed` as a flag rather than miscounting it as a
   coordinate; bare flags are recognised generally (`Args::flag`).
 
+[0.5.0]: #
 [0.4.0]: #
 [0.3.0]: #
 [0.2.0]: #

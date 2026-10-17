@@ -23,8 +23,8 @@ foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
 | 1 | v0.2 | Robust 2D geometry (booleans, fillets, real holes) | ✅ complete |
 | 2 | v0.3 | Text & engraving + layered cut/score/engrave export | ✅ complete |
 | 3 | v0.4 | 3D CSG, fillets/chamfers, shell/offset | ✅ complete |
-| 4 | v0.5 | Drafting & rendering (HLR, shading, views, arrays, dims) | ⬜ next |
-| 5 | v0.6 | Library explosion (15+ maker/craftsman skills) | ⬜ |
+| 4 | v0.5 | Drafting & rendering (HLR, shading, views, arrays, dims) | ✅ complete |
+| 5 | v0.6 | Library explosion (15+ maker/craftsman skills) | ⬜ next |
 | 6 | v0.7 | AI copilot (inspect-iterate-repair loop) | ⬜ |
 | 7 | v0.8 | Interop & UX (import, undo, watch, richer export) | ⬜ |
 | 8 | v1.0 | Extensibility & release (plugins, fuzz, CI, packaging) | ⬜ |
@@ -194,11 +194,12 @@ the transforms/layout every real drawing needs.
   — so a single tooth/bolt becomes a ring/grid, and assemblies move as one.
 
 **Work items.**
-- [ ] HLR and `shade` renderers; axes/grid/scale-bar overlay.
-- [ ] `view` presets + `render layout=views` tiling.
-- [ ] `array` (linear/polar/grid), `mirror`, `group`/`ungroup`.
-- [ ] Dimensioning pass + SVG/DXF drawing-sheet export.
-- [ ] Tests: array counts/positions, mirror symmetry, HLR edge culling.
+- [x] HLR and `shade` (ANSI half-block) renderers; scale-bar overlay.
+- [x] `view` presets (iso/top/front/right) + `render layout=views` tiling.
+- [x] `array` (linear/polar/grid), `mirror`, `group`/`ungroup` (group tag on `Entity`).
+- [x] Dimensioning pass (`dim`) + drawing-sheet SVG (reuses role layers).
+- [x] Tests: array counts/positions, mirror symmetry, HLR edge culling, shade,
+      view tiling, group transform, dim sheet.
 
 **Checkpoint.** A polar `array` of a single gear tooth reconstructs a full gear;
 `render layout=views` shows four correct viewports; a dimensioned rect exports a

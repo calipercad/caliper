@@ -4,7 +4,7 @@ use crate::bbox::{Aabb2, Aabb3};
 use crate::error::{CadError, Result};
 use crate::geom2d::Shape;
 use crate::geom3d::Mesh;
-use crate::math::Mat4;
+use crate::math::{Mat4, Vec3};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Units {
@@ -74,6 +74,9 @@ pub struct Entity {
     /// Optional fabrication role (`cut` / `score` / `engrave` / …). Drives
     /// per-layer stroke color and the fallback layer name on export.
     pub role: Option<String>,
+    /// Optional group tag. Entities sharing a tag move/transform together when
+    /// a command targets the group name (see [`Scene::member_names`]).
+    pub group: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -112,6 +115,7 @@ impl Scene {
                 geom,
                 layer: None,
                 role: None,
+                group: None,
             });
         }
         self.selected = Some(name.clone());
@@ -135,6 +139,58 @@ impl Scene {
             e.role = role;
         }
         Ok(e.name.clone())
+    }
+
+    /// The entity names a transform should act on: if `target` names a group
+    /// (any entity carries it as a `group` tag), all its members; otherwise the
+    /// single resolved entity (defaulting to the current selection when
+    /// `target` is `None`). Used so `translate g` moves a whole group.
+    pub fn member_names(&self, target: Option<&str>) -> Result<Vec<String>> {
+        if let Some(t) = target {
+            let members: Vec<String> = self
+                .entities
+                .iter()
+                .filter(|e| e.group.as_deref() == Some(t))
+                .map(|e| e.name.clone())
+                .collect();
+            if !members.is_empty() {
+                return Ok(members);
+            }
+        }
+        let name = target
+            .map(|s| s.to_string())
+            .or_else(|| self.selected.clone())
+            .ok_or_else(|| CadError::NotFound("no target and no selection".into()))?;
+        if self.get(&name).is_some() {
+            Ok(vec![name])
+        } else {
+            Err(CadError::NotFound(name))
+        }
+    }
+
+    /// Combined bounding-box center (in 3D) of the named entities — the pivot
+    /// for an `about=center` transform applied to a whole group.
+    pub fn group_center(&self, names: &[String]) -> Vec3 {
+        let mut b = Aabb3::empty();
+        for e in self.entities.iter().filter(|e| names.contains(&e.name)) {
+            match &e.geom {
+                Geometry::Shape(s) => {
+                    let bb = s.bbox();
+                    b.expand(bb.min.to3());
+                    b.expand(bb.max.to3());
+                }
+                Geometry::Mesh(m) => {
+                    let bb = m.bbox();
+                    b.expand(bb.min);
+                    b.expand(bb.max);
+                }
+            }
+        }
+        if b.is_empty() {
+            Vec3::ZERO
+        } else {
+            b.center()
+        }
     }
 
     pub fn get(&self, name: &str) -> Option<&Entity> {

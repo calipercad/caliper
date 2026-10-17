@@ -48,7 +48,7 @@ cad-assist/                 workspace root (no package)
 │   │       ├── args.rs         positional/option arg parsing
 │   │       ├── skills/         Skill trait + registry + built-ins
 │   │       ├── export/         svg, dxf, stl, obj, gcode writers
-│   │       ├── render/         BrailleCanvas + 2D/3D renderers
+│   │       ├── render/         Braille/half-block canvases, wire/HLR/shade, views
 │   │       ├── ai/             natural-language → script bridge (curl/jq)
 │   │       ├── script/         tokenizer, Interpreter, reference.txt
 │   │       └── lib.rs          module wiring + tests
@@ -99,11 +99,13 @@ cad-assist/                 workspace root (no package)
   Non-manifold input returns a clean error. The `union`/`subtract`/`intersect`
   commands dispatch here for meshes and to `geom2d::boolean` for shapes.
 - **`Geometry` = `Shape | Mesh`**, wrapped in **`Entity { name, geom, layer,
-  role }`**, held by **`Scene { entities, units, selected, auto_counter }`**.
-  The scene tracks the current selection so most ops default to "the selected
-  entity." `layer`/`role` (both `Option<String>`, set via `Scene::set_attrs`)
-  are optional export attributes: exporters group by layer (falling back to
-  `role`, then `"0"`) and color by role.
+  role, group }`**, held by **`Scene { entities, units, selected,
+  auto_counter }`**. The scene tracks the current selection so most ops default
+  to "the selected entity." `layer`/`role` (both `Option<String>`, via
+  `Scene::set_attrs`) are export attributes: exporters group by layer (falling
+  back to `role`, then `"0"`) and color by role. `group: Option<String>` tags
+  entities that move/transform together; `Scene::member_names(target)` expands a
+  group name to its members so `translate g` moves the whole group.
 - **`geom2d::text`** — single-stroke text for engraving/plotting.
   `stroke_text(text, height, align)` lays out the built-in in-tree single-stroke
   vector font (`geom2d::text::font`, `const` data for printable ASCII) into a
@@ -140,8 +142,8 @@ so a saved script has exactly one, correct unit declaration.
   `extrude` — rounding an arbitrary existing mesh's edges is future work, and
   `shell` is convex/prismatic-limited (a robust general inward offset is future
   work).
-- **No dimensions.** Stroke text ships (Phase 2); dimensioned drawing sheets →
-  Phase 4.
+- **Dimensioning is bbox-only.** `dim` annotates a shape's overall width/height;
+  per-feature dimensions, tolerances, and 3D dims are future work.
 - **Exporter gaps remain**: no G2/G3 arc output in G-code, ASCII STL only (no
   binary/3MF/PDF). DXF `CIRCLE`/`ARC` and SVG `<circle>` now round-trip. →
   Phase 7.

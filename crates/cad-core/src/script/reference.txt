@@ -35,8 +35,15 @@ OPERATIONS (default target = current selection; override with target=<id>)
   fillet <r> [seg=16] [target=]                    round contour corners (2D)
   chamfer <d> [target=]                            bevel contour corners (2D)
   shell <t> [target=]                              hollow a solid to wall t (convex/prism)
+  array <n> [kind=linear|polar|grid] [dx= dy= dz=] [nx= ny=] [about=] [target=] [name=]
+                                                   replicate (polar spins about Z; name= groups)
+  mirror [axis=x|y|z] [about=center|origin] [copy] [target=]   reflect (copy keeps original)
+  group <a> <b> … name=<tag>                       tag entities into a group
+  ungroup <tag>                                    clear a group tag
+  dim <target> [name=]                             bbox dimension annotation (role=dim)
   layer <name> [target=]                           set an entity's export layer
   role <name> [target=]                            set cut|score|engrave (layer color)
+  (transforms/array/mirror act on a whole group when target= names a group)
   (rounded/beveled 3D edges: fillet/chamfer the 2D profile, then extrude)
 
 SKILLS (parametric generators — run `skills` to list)
@@ -52,7 +59,11 @@ SCENE / INSPECTION
   select <name>          delete <name>  clear         skills        help
 
 RENDER (ASCII/braille preview)
-  render [name] [mode=2d|3d] [w=cols] [h=rows] [yaw=deg] [pitch=deg]
+  render [name] [w=cols] [h=rows] [yaw=deg] [pitch=deg]
+         [mode=wire|hlr|shade]   wire edges / hidden-line removal / shaded (ANSI)
+         [view=iso|top|front|right]   camera preset
+         [layout=views]          tile top/front/right/iso into a 2×2 sheet
+         [axes=on|off]           scale-bar overlay (3D single view)
 
 EXPORT
   export svg   <path> [name=]     Cricut / Silhouette / laser / vinyl (mm)
