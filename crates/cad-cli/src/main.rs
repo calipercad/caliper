@@ -7,6 +7,7 @@
 //!   cad watch <file.cad>    re-run + render whenever the file is saved
 //!   cad ai <describe it>    generate a design with Claude and print/run it
 //!   cad new <name>          scaffold a starter script
+//!   cad plugin list|new|add|remove   manage ~/.cad-assist/skills plugins
 //!   cad skills              list available parametric skills
 //!   cad help                print the language reference
 //!   cad version
@@ -14,6 +15,7 @@
 mod repl;
 
 use cad_core::script::{Interpreter, LANGUAGE_REFERENCE};
+use std::path::Path;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
@@ -73,6 +75,7 @@ fn main() -> ExitCode {
             let name = args.get(1).map(|s| s.as_str()).unwrap_or("design");
             scaffold(name)
         }
+        "plugin" => plugin(&args),
         // shorthand: `cad foo.cad`
         path if path.ends_with(".cad") => run_file(path),
         other => {
@@ -130,6 +133,112 @@ fn watch_file(path: &str) -> ExitCode {
             let _ = std::io::stdout().flush();
         }
         std::thread::sleep(Duration::from_millis(300));
+    }
+}
+
+/// `cad plugin list|new|add|remove` — manage script-skills (`.cad` plugins) in
+/// `~/.cad-assist/skills/`. A script-skill is runnable as `skill <name>` and
+/// shows up in `skills` with no recompile.
+fn plugin(args: &[String]) -> ExitCode {
+    let dir = match Interpreter::new().skill_dir() {
+        Some(d) => d.to_path_buf(),
+        None => {
+            eprintln!("no skills directory (is HOME set?)");
+            return ExitCode::FAILURE;
+        }
+    };
+    match args.get(1).map(|s| s.as_str()) {
+        Some("list") | None => {
+            // Built-ins + the user's script-skills (the interpreter lists both).
+            let mut it = Interpreter::new();
+            print!("{}", it.exec_line("skills").unwrap_or_default());
+            ExitCode::SUCCESS
+        }
+        Some("new") => {
+            let Some(name) = args.get(2) else {
+                eprintln!("usage: cad plugin new <name>");
+                return ExitCode::FAILURE;
+            };
+            if let Err(e) = std::fs::create_dir_all(&dir) {
+                eprintln!("cannot create {}: {e}", dir.display());
+                return ExitCode::FAILURE;
+            }
+            let path = dir.join(format!("{name}.cad"));
+            if path.exists() {
+                eprintln!("{} already exists", path.display());
+                return ExitCode::FAILURE;
+            }
+            let body = format!(
+                "# {name} — a cad-assist script-skill (plugin)\n\
+                 # invoke:  skill {name} size=40\n\
+                 # ${{key:default}} placeholders are filled from `key=value` args.\n\
+                 rect ${{size:40}} ${{size:40}} rx=4 name={name}\n\
+                 render\n"
+            );
+            match std::fs::write(&path, body) {
+                Ok(_) => {
+                    println!("created {}\n  run it with:  skill {name}", path.display());
+                    ExitCode::SUCCESS
+                }
+                Err(e) => {
+                    eprintln!("cannot write {}: {e}", path.display());
+                    ExitCode::FAILURE
+                }
+            }
+        }
+        Some("add") => {
+            let Some(src) = args.get(2) else {
+                eprintln!("usage: cad plugin add <file.cad>");
+                return ExitCode::FAILURE;
+            };
+            let stem = Path::new(src)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("plugin");
+            if let Err(e) = std::fs::create_dir_all(&dir) {
+                eprintln!("cannot create {}: {e}", dir.display());
+                return ExitCode::FAILURE;
+            }
+            let dest = dir.join(format!("{stem}.cad"));
+            match std::fs::copy(src, &dest) {
+                Ok(_) => {
+                    println!(
+                        "installed '{stem}' → {}\n  run it with:  skill {stem}",
+                        dest.display()
+                    );
+                    ExitCode::SUCCESS
+                }
+                Err(e) => {
+                    eprintln!("cannot copy {src}: {e}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
+        Some("remove") => {
+            let Some(name) = args.get(2) else {
+                eprintln!("usage: cad plugin remove <name>");
+                return ExitCode::FAILURE;
+            };
+            let path = dir.join(format!("{name}.cad"));
+            if !path.exists() {
+                eprintln!("no plugin '{name}' in {}", dir.display());
+                return ExitCode::FAILURE;
+            }
+            match std::fs::remove_file(&path) {
+                Ok(_) => {
+                    println!("removed plugin '{name}'");
+                    ExitCode::SUCCESS
+                }
+                Err(e) => {
+                    eprintln!("cannot remove {}: {e}", path.display());
+                    ExitCode::FAILURE
+                }
+            }
+        }
+        Some(other) => {
+            eprintln!("unknown: cad plugin {other} (use list|new|add|remove)");
+            ExitCode::FAILURE
+        }
     }
 }
 

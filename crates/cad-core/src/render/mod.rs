@@ -73,18 +73,19 @@ impl BrailleCanvas {
             }
         }
     }
+}
 
-    pub fn to_string(&self) -> String {
-        let mut s = String::with_capacity(self.rows * (self.cols + 1));
+impl std::fmt::Display for BrailleCanvas {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for r in 0..self.rows {
             for c in 0..self.cols {
                 let bits = self.cells[r * self.cols + c];
                 let ch = char::from_u32(0x2800 + bits as u32).unwrap_or(' ');
-                s.push(ch);
+                f.write_fmt(format_args!("{ch}"))?;
             }
-            s.push('\n');
+            writeln!(f)?;
         }
-        s
+        Ok(())
     }
 }
 
@@ -335,27 +336,26 @@ impl HalfBlockCanvas {
             px: vec![None; cols * rows * 2],
         }
     }
+}
 
-    fn to_string(&self) -> String {
-        let mut s = String::new();
+impl std::fmt::Display for HalfBlockCanvas {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for r in 0..self.rows {
             for c in 0..self.cols {
                 let top = self.px[(2 * r) * self.w + c];
                 let bot = self.px[(2 * r + 1) * self.w + c];
                 match (top, bot) {
-                    (None, None) => s.push(' '),
+                    (None, None) => f.write_str(" ")?,
                     _ => {
                         let t = top.unwrap_or(0);
                         let b = bot.unwrap_or(0);
-                        s.push_str(&format!(
-                            "\x1b[38;2;{t};{t};{t}m\x1b[48;2;{b};{b};{b}m\u{2580}"
-                        ));
+                        write!(f, "\x1b[38;2;{t};{t};{t}m\x1b[48;2;{b};{b};{b}m\u{2580}")?;
                     }
                 }
             }
-            s.push_str("\x1b[0m\n");
+            writeln!(f, "\x1b[0m")?;
         }
-        s
+        Ok(())
     }
 }
 

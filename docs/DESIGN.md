@@ -150,11 +150,24 @@ so a saved script has exactly one, correct unit declaration.
   REPL tab-completion (needs raw-terminal/line-editor crates), and 3MF/PDF
   export (3MF is a ZIP container). Import (svg/dxf/stl), undo/redo, `watch`,
   binary STL, and G2/G3 G-code shipped in Phase 7.
-- **Not yet extensible by third parties**: no plugin host; correctness infra
-  (fuzz, property tests) and release packaging. → Phase 8 (v1.0).
+- **Post-1.0 (held back to stay zero-dependency)**: a sandboxed WASM/dylib
+  plugin host for third-party *native* skills (script-skills + `cad plugin`
+  cover extension today, see [PLUGINS.md](PLUGINS.md)), coverage-guided
+  `cargo-fuzz`, and a generated docs site.
+
+## Extensibility
+
+The extension mechanism is **script-skills**: a `.cad` file with
+`${key:default}` placeholders in `~/.cad-assist/skills/` becomes a `skill
+<name>` command (managed by `cad plugin`). Native skills implement the `Skill`
+trait and register in `SkillRegistry::with_builtins`. Both are std-only and need
+no plugin host. See [PLUGINS.md](PLUGINS.md).
 
 ## Testing
 
-`cargo test` runs kernel + interpreter tests and the crate doctest. Geometry
-work should add: unit tests for the math, end-to-end interpreter tests for new
-commands, and (Phase 8) property/fuzz tests for the triangulator and booleans.
+`cargo test` runs kernel + interpreter tests, the phase integration suites
+(`tests/phase1..7.rs`), the crate doctest, and **randomized property tests**
+(`tests/properties.rs`): a seeded std-only PRNG checks triangulate / boolean /
+CSG invariants across many cases. CI gates `fmt --check`, `clippy -D warnings`,
+build, and test on every push. Geometry work should add a unit test for the
+math and an end-to-end interpreter test for each new command.

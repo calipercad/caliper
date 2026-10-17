@@ -155,7 +155,12 @@ fn fingered_edge(
     let n = out_normal.normalized() * depth;
     // Odd number of segments so the edge begins and ends on the baseline.
     let approx = (len / finger).round().max(1.0) as usize;
-    let nseg = if approx % 2 == 0 { approx + 1 } else { approx }.max(3);
+    let nseg = if approx.is_multiple_of(2) {
+        approx + 1
+    } else {
+        approx
+    }
+    .max(3);
     let sl = len / nseg as f64;
 
     let mut out = Vec::with_capacity(nseg * 2);

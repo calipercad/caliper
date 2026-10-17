@@ -240,6 +240,7 @@ pub struct Mat4 {
 impl Mat4 {
     pub fn identity() -> Mat4 {
         let mut m = [[0.0; 4]; 4];
+        #[allow(clippy::needless_range_loop)]
         for i in 0..4 {
             m[i][i] = 1.0;
         }
@@ -295,6 +296,7 @@ impl Mat4 {
     /// `self * other` (apply `other` first, then `self`).
     pub fn mul(&self, o: &Mat4) -> Mat4 {
         let mut r = [[0.0; 4]; 4];
+        #[allow(clippy::needless_range_loop)]
         for c in 0..4 {
             for row in 0..4 {
                 let mut sum = 0.0;

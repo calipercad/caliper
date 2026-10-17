@@ -219,7 +219,7 @@ impl Scene {
         self.entities
             .iter_mut()
             .find(|e| e.name == name)
-            .ok_or_else(|| CadError::NotFound(name))
+            .ok_or(CadError::NotFound(name))
     }
 
     pub fn delete(&mut self, name: &str) -> Result<()> {

@@ -293,6 +293,8 @@ impl Shape {
         let interiors: Vec<Option<Vec2>> =
             polys.iter().map(|p| contour_interior_point(p)).collect();
 
+        // Index-based: `i` indexes both `self.contours` and `interiors`.
+        #[allow(clippy::needless_range_loop)]
         for i in 0..n {
             let tp = match interiors[i] {
                 Some(p) => p,
@@ -308,7 +310,7 @@ impl Shape {
                 }
             }
             // Even depth => solid shell (CCW); odd depth => hole (CW).
-            let want_ccw = depth % 2 == 0;
+            let want_ccw = depth.is_multiple_of(2);
             let is_ccw = self.contours[i].signed_area() > 0.0;
             if want_ccw != is_ccw {
                 self.contours[i].points.reverse();

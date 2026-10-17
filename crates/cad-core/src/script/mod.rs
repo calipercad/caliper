@@ -25,8 +25,7 @@ pub fn tokenize(line: &str) -> Vec<String> {
     let mut tokens = Vec::new();
     let mut cur = String::new();
     let mut in_quote = false;
-    let mut chars = line.chars().peekable();
-    while let Some(c) = chars.next() {
+    for c in line.chars() {
         match c {
             '"' => in_quote = !in_quote,
             '#' | ';' if !in_quote => break, // comment to end of line
@@ -73,6 +72,11 @@ impl Interpreter {
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
         }
+    }
+
+    /// The directory user script-skills (`*.cad` plugins) live in, if known.
+    pub fn skill_dir(&self) -> Option<&std::path::Path> {
+        self.user_skill_dir.as_deref()
     }
 
     /// Run `~/.cad-assist/config.cad` if present (units, defaults). Best-effort;
@@ -585,7 +589,7 @@ impl Interpreter {
                 // center); `about=center` spins each copy about the part center.
                 let about = args.str_or("about", "origin").to_string();
                 let pivot = if about == "center" {
-                    self.scene.group_center(&[src.clone()])
+                    self.scene.group_center(std::slice::from_ref(&src))
                 } else {
                     Vec3::ZERO
                 };

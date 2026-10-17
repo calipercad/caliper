@@ -3,6 +3,33 @@
 All notable changes to cad-assist are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## [1.0.0] — Extensibility & release
+
+The roadmap is complete. This release makes cad-assist extensible, adds
+correctness infrastructure and CI, and polishes packaging — all while keeping
+the kernel std-only and zero-dependency.
+
+### Added
+- **Plugin surface**: `cad plugin list|new|add|remove` manages script-skills in
+  `~/.cad-assist/skills/` (a `.cad` with `${param:default}` slots is runnable as
+  `skill <name>` and listed in `skills`, no recompile). `Interpreter::skill_dir`
+  exposes the directory. Full model — script-skills and native `Skill`-trait
+  skills — documented in `docs/PLUGINS.md`.
+- **Property tests** (`tests/properties.rs`): a seeded SplitMix64 PRNG drives
+  randomized invariant checks — triangulate (n−2 triangles + area),
+  boolean inclusion–exclusion + determinism, CSG manifold + positive volume +
+  volume inclusion–exclusion. Deterministic, std-only (no cargo-fuzz).
+- `Mesh::signed_volume` — public (was a duplicated test helper).
+- **CI** (`.github/workflows/ci.yml`): gates `fmt --check`, `clippy -D warnings`,
+  build, and test on stable; the crate is now clippy-clean.
+- **Packaging**: workspace metadata (`repository`/`readme`/`keywords`/
+  `categories`/`homepage`), `cargo install --path crates/cad-cli`, a README
+  refresh, and a Homebrew formula template (`dist/cad-assist.rb`).
+
+### Deferred (post-1.0, to stay zero-dependency)
+- A WASM/dylib plugin host, coverage-guided `cargo-fuzz`, and a generated docs
+  site.
+
 ## [0.8.0] — Interop & UX
 
 cad-assist can now read files back, undo, watch, and emit richer output —
@@ -229,6 +256,7 @@ First working release: a complete, tested vertical slice of the tool.
 - `path … closed` now treats `closed` as a flag rather than miscounting it as a
   coordinate; bare flags are recognised generally (`Args::flag`).
 
+[1.0.0]: #
 [0.8.0]: #
 [0.7.0]: #
 [0.6.0]: #

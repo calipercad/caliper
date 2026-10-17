@@ -19,13 +19,19 @@ cutters, pen plotters, CNC, and 3D printers**.
 
 - **Terminal-first.** Everything is text: scriptable, diffable, pipeable,
   reproducible. A design is a `.cad` file you can version-control.
-- **Parametric "skills."** Gears, finger-jointed boxes, honeycomb panels,
-  washers, standoffs — generators driven by real engineering math, not
-  hand-drawn shapes. Extend the library with your own skills (see below).
-- **AI assisted.** `ai "a 24-tooth gear with a 5mm bore, 6mm thick"` asks Claude
-  to emit the exact commands, then runs them. Zero HTTP dependencies — it shells
-  out to `curl`/`jq`.
-- **Manufacturing-grade export.** SVG (real mm), DXF (AutoCAD), G-code, STL, OBJ.
+- **Real geometry kernel.** Exact-integer 2D booleans, true holed extrusion,
+  BSP mesh CSG (`subtract`/`union`/`intersect`), fillet/chamfer, shell,
+  single-stroke text, arrays/mirror/groups, and dimensioning — with manifold
+  verification on 3D output.
+- **20 parametric "skills."** Gears, sprockets, pulleys, cams, gridfinity bins,
+  enclosures, knobs, monograms, box templates, living hinges… driven by real
+  engineering math. See [docs/SKILLS.md](docs/SKILLS.md); extend with your own
+  ([docs/PLUGINS.md](docs/PLUGINS.md)).
+- **AI copilot.** `ai "a 24-tooth gear with a 5mm bore, 6mm thick"` runs an
+  inspect→run→repair loop with Claude. Zero HTTP deps — it shells out to
+  `curl`/`jq`.
+- **Round-trips the real world.** Import SVG/DXF/STL, `undo`/`redo`, `watch` a
+  file, and export SVG, DXF, G-code (G2/G3 arcs), STL (ASCII + binary), OBJ.
 - **Zero dependencies.** The entire kernel is `std`-only Rust.
 
 ## Install & build
@@ -34,9 +40,14 @@ Requires a recent stable Rust toolchain.
 
 ```sh
 git clone <your-fork> cad-assist && cd cad-assist
-cargo build --release
-# the binary lands at target/release/cad
-./target/release/cad            # start the interactive shell
+cargo install --path crates/cad-cli    # installs the `cad` binary to ~/.cargo/bin
+cad                                     # start the interactive shell
+```
+
+Or build in place:
+
+```sh
+cargo build --release                   # binary at target/release/cad
 ```
 
 During development you can run it straight from cargo:
@@ -80,44 +91,35 @@ Run `cad help` for the full reference. The essentials:
 
 | Group | Commands |
 |---|---|
-| 2D | `rect w h [rx=] [name=]`, `circle r`, `polygon sides r`, `star pts ro ri`, `arc r a0 a1`, `path x1 y1 … [closed]` |
+| 2D | `rect w h [rx=] [name=]`, `circle r`, `polygon sides r`, `star pts ro ri`, `arc r a0 a1`, `path x1 y1 … [closed]`, `text "…" [h=]` |
 | 3D | `box w d h`, `cylinder r h`, `sphere r`, `cone r h` |
-| Ops | `extrude h`, `revolve`, `translate x y z`, `rotate deg [axis=] [about=]`, `scale f` |
-| Skills | `skill <name> …` (see `skills`) |
-| Scene | `units`, `select`, `delete`, `clear`, `list`, `bbox` |
-| I/O | `render [mode=2d\|3d]`, `export <fmt> <path>`, `save`, `load`, `ai <text>` |
+| Ops | `extrude h`, `revolve`, `translate`, `rotate`, `scale`, `array`, `mirror`, `group`/`ungroup`, `fillet`, `chamfer`, `shell`, `dim` |
+| Booleans | `union a b`, `subtract a b`, `intersect a b`, `xor a b` (2D shapes **or** 3D meshes, auto-dispatched) |
+| Skills | `skill <name> …` (see `skills`, [SKILLS.md](docs/SKILLS.md)) |
+| Scene | `units`, `select`, `delete`, `clear`, `list`, `bbox`, `undo`, `redo` |
+| I/O | `render [mode=wire\|hlr\|shade] [view=] [layout=views]`, `export <fmt> <path>`, `import <file>`, `save`, `load`, `ai <text>` |
 
 ## Skills — the parametric library
 
-Run `skills` (or `cad skills`) to list them. Built-ins today:
+Run `skills` (or `cad skills`) to list all 20, with usage. By group:
 
-| Skill | Makes |
-|---|---|
-| `gear` | Involute spur gear (2D profile or extruded solid) |
-| `boxjoint` | Finger-jointed box panels laid out flat for laser/CNC |
-| `honeycomb` | Plate perforated with a hexagonal grid |
-| `washer` | Flat washer / annulus (2D ring or solid tube) |
-| `standoff` | Cylindrical standoff/spacer with a through bore |
+- **Mechanical:** `gear`, `sprocket`, `rack`, `pulley`, `cam`, `flange`, `washer`, `standoff`
+- **Maker / 3D:** `gridfinity`, `enclosure`, `standoff_grid`, `knob`, `cable_clip`, `boxjoint`
+- **Craft / laser:** `monogram`, `mandala`, `card`, `box_template`, `living_hinge`, `honeycomb`
+
+The full gallery with parameters and previews is in [docs/SKILLS.md](docs/SKILLS.md).
 
 ### Extending the library
 
-Two ways to add skills — no recompile needed for the first:
+Add your own, no recompile needed — manage script-skills with `cad plugin`:
 
-1. **Script-skills (`.cad` templates).** Drop a parametric file in
-   `~/.cad-assist/skills/<name>.cad` using `${param}` / `${param:default}`
-   placeholders. It's instantly available as `skill <name> …`:
+```sh
+cad plugin new coaster     # scaffold ~/.cad-assist/skills/coaster.cad
+cad plugin list            # built-ins + your plugins
+```
 
-   ```
-   # ~/.cad-assist/skills/coaster.cad
-   rect ${size:90} ${size:90} rx=${corner:12} name=coaster
-   ```
-   ```
-   cad> skill coaster size=100 corner=15
-   ```
-
-2. **Native Rust skills.** Implement the `Skill` trait in `cad-core` and
-   register it in `SkillRegistry::with_builtins()`. See
-   `crates/cad-core/src/skills/` for worked examples (`gear.rs` is the richest).
+A script-skill is a `.cad` template with `${param:default}` slots; native Rust
+skills implement the `Skill` trait. See [docs/PLUGINS.md](docs/PLUGINS.md).
 
 ## Rendering
 
@@ -131,12 +133,13 @@ edges only (no triangle soup). Tune it: `render mode=3d yaw=35 pitch=25 w=100 h=
 |---|---|---|
 | `svg` | Cricut, Silhouette, laser, vinyl | real-mm sizing, one cut path per contour |
 | `dxf` | AutoCAD, LibreCAD, Fusion | `LWPOLYLINE`, `AC1015`, unit-tagged |
-| `gcode` | pen plotters, drag knives, CNC contour | configurable feeds/Z |
-| `stl` | 3D printing, slicers | ASCII, computed normals |
+| `gcode` | pen plotters, drag knives, CNC contour | G2/G3 arcs for circles/arcs |
+| `stl` | 3D printing, slicers | ASCII or `binary` |
 | `obj` | mesh interchange | |
 
 Omit `name=` to export **every** matching entity — handy for laser layouts
-where each panel is its own cut path.
+where each panel is its own cut path. SVG/DXF group entities onto layers by
+`role` (cut/score/engrave). Read files back with `import <file.svg|dxf|stl>`.
 
 ## AI setup
 
@@ -148,8 +151,11 @@ export ANTHROPIC_API_KEY=sk-ant-...     # required
 export CAD_AI_MODEL=claude-sonnet-5     # optional; this is the default
 ```
 
-The model is given the full language reference as a system prompt and asked to
-return only runnable commands, which cad-assist then executes.
+`ai <describe it>` runs an **inspect→run→repair loop**: the model emits
+commands, cad-assist runs them and feeds back the render + entity list (and any
+error, for the model to fix), until the design matches or a step budget is hit.
+`ai edit "<change>"` refines the current scene; `ai fix` repairs the last run.
+The system prompt carries the language reference plus a live skills digest.
 
 ## Examples
 
@@ -184,12 +190,17 @@ each phase with its own design and checkpoint.
 
 ## Status
 
-v0.1 — foundation complete: geometry kernel, scripting language, five skills,
-five exporters, braille rendering, and the AI bridge, all tested end to end.
-The known v1 limitation is that 3D `extrude` caps the outer contour and does not
-yet cut holes through caps (true booleans/CSG are Phase 1/3 on the roadmap); 2D
-output already renders holes correctly. Details and the plan forward are in
-[`docs/ROADMAP.md`](docs/ROADMAP.md).
+**v1.0 — the roadmap is complete.** Eight shipped milestones: robust 2D
+geometry (exact-integer booleans, holed extrusion, fillets), text + layered
+cut/score/engrave export, 3D mesh CSG + shell, drafting & rendering (HLR,
+shaded, multi-view, arrays, dimensions), a 20-skill parametric library, the AI
+copilot loop, interop (import, undo, watch, richer export), and this release
+(the `plugin` surface, randomized property tests, CI, packaging). All tested
+end to end — see [`docs/ROADMAP.md`](docs/ROADMAP.md) and
+[`CHANGELOG.md`](CHANGELOG.md).
+
+Post-1.0 ideas (held back to keep the kernel zero-dependency): a WASM/dylib
+plugin host, coverage-guided fuzzing, and a generated docs site.
 
 ## License
 

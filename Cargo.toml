@@ -3,11 +3,16 @@ resolver = "2"
 members = ["crates/cad-core", "crates/cad-cli"]
 
 [workspace.package]
-version = "0.8.0"
+version = "1.0.0"
 edition = "2021"
 license = "MIT"
 authors = ["cad-assist"]
 description = "A terminal-native, AI-assisted parametric CAD toolkit"
+repository = "https://github.com/cad-assist/cad-assist"
+homepage = "https://github.com/cad-assist/cad-assist"
+readme = "README.md"
+keywords = ["cad", "geometry", "cnc", "laser", "3d-printing"]
+categories = ["command-line-utilities", "graphics", "mathematics"]
 
 [profile.release]
 opt-level = 3

@@ -17,6 +17,8 @@ foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
 
 ## Status at a glance
 
+**🎉 v1.0 released — all eight phases complete.**
+
 | Phase | Version | Theme | State |
 |---|---|---|---|
 | 0 | v0.1 | Foundation | ✅ complete |
@@ -27,7 +29,7 @@ foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
 | 5 | v0.6 | Library explosion (15+ maker/craftsman skills) | ✅ complete |
 | 6 | v0.7 | AI copilot (inspect-iterate-repair loop) | ✅ complete |
 | 7 | v0.8 | Interop & UX (import, undo, watch, richer export) | ✅ complete |
-| 8 | v1.0 | Extensibility & release (plugins, fuzz, CI, packaging) | ⬜ next |
+| 8 | v1.0 | Extensibility & release (plugins, fuzz, CI, packaging) | ✅ complete |
 
 ---
 
@@ -346,10 +348,18 @@ polished, trustworthy 1.0.
   `reference.txt` + these docs.
 
 **Work items.**
-- [ ] Plugin host (WASM or dylib ABI) + `cad plugin` commands + docs.
-- [ ] Property tests + fuzz targets for triangulate/boolean/CSG.
-- [ ] Benchmarks; CI workflow; clippy/fmt gates.
-- [ ] Packaging: release binaries, `cargo install`, Homebrew, docs site.
+- [x] Plugin model = std-only **script-skills** + `cad plugin list|new|add|remove`
+      + `docs/PLUGINS.md` (native `Skill` trait also documented).
+- [x] Randomized std-only property tests (seeded PRNG) for triangulate / boolean
+      / CSG invariants (`tests/properties.rs`); `Mesh::signed_volume` added.
+- [x] CI workflow gating fmt + `clippy -D warnings` + build + test; all clippy
+      warnings cleaned.
+- [x] Packaging: Cargo metadata, `cargo install` support, README polish, a
+      Homebrew formula template (`dist/`).
+- [~] WASM/dylib plugin host, `cargo-fuzz`, prebuilt binaries + a generated docs
+      site — **post-1.0** (external deps / nightly, at odds with the std-only,
+      zero-dependency kernel; script-skills + seeded property tests cover the
+      need today).
 
 **Checkpoint.** A third-party plugin loads and its skill appears in `skills`;
 fuzz targets run clean for a fixed corpus; CI is green; `cargo install` yields a

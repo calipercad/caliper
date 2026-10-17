@@ -273,7 +273,7 @@ impl Mesh {
                 return false; // a directed edge used more than once
             }
             match dir.get(&(v, u)) {
-                Some(&rev) if rev == 1 => {}
+                Some(&1) => {}
                 _ => return false, // missing or duplicated opposite half-edge
             }
         }
@@ -305,6 +305,20 @@ impl Mesh {
         let e = eset.len() as i64;
         let f = self.tris.len() as i64;
         v - e + f
+    }
+
+    /// Signed volume via the divergence theorem (`Σ a·(b×c)/6`). For a closed
+    /// mesh with outward-facing (CCW-from-outside) triangles this is positive
+    /// and equals the enclosed volume.
+    pub fn signed_volume(&self) -> f64 {
+        let mut v = 0.0;
+        for t in &self.tris {
+            let a = self.verts[t[0]];
+            let b = self.verts[t[1]];
+            let c = self.verts[t[2]];
+            v += a.dot(b.cross(c));
+        }
+        v / 6.0
     }
 }
 
