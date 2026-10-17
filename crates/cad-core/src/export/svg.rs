@@ -3,7 +3,7 @@
 //! one `<path>` per contour (fill:none, thin stroke = cut lines).
 
 use crate::bbox::Aabb2;
-use crate::geom2d::Shape;
+use crate::geom2d::{ContourKind, Shape};
 
 pub fn to_svg(shapes: &[(&str, &Shape)], mm: f64) -> String {
     // Combined bounds (in mm), with a small margin.
@@ -49,20 +49,36 @@ pub fn to_svg(shapes: &[(&str, &Shape)], mm: f64) -> String {
     for (name, s) in shapes {
         out.push_str(&format!("  <g id=\"{}\">\n", xml_escape(name)));
         for c in &s.contours {
-            if c.points.is_empty() {
-                continue;
+            match &c.kind {
+                // A known circle primitive becomes a real <circle>: same y-flip
+                // map for the center, radius scaled to millimetres.
+                ContourKind::Circle { c: center, r } => {
+                    let (cx, cy) = map(*center);
+                    let rr = *r * mm;
+                    out.push_str(&format!(
+                        "    <circle cx=\"{cx:.4}\" cy=\"{cy:.4}\" r=\"{rr:.4}\" \
+                         fill=\"none\" stroke=\"black\" stroke-width=\"0.2\"/>\n"
+                    ));
+                }
+                // Arcs and polylines stay tessellated <path>s — arcs as polylines
+                // avoid the y-flip sweep-flag pitfall (conservative).
+                ContourKind::Arc { .. } | ContourKind::Polyline => {
+                    if c.points.is_empty() {
+                        continue;
+                    }
+                    let mut d = String::new();
+                    for (i, &p) in c.points.iter().enumerate() {
+                        let (x, y) = map(p);
+                        d.push_str(&format!("{}{x:.4} {y:.4}", if i == 0 { "M" } else { " L" }));
+                    }
+                    if c.closed {
+                        d.push_str(" Z");
+                    }
+                    out.push_str(&format!(
+                        "    <path d=\"{d}\" fill=\"none\" stroke=\"black\" stroke-width=\"0.2\"/>\n"
+                    ));
+                }
             }
-            let mut d = String::new();
-            for (i, &p) in c.points.iter().enumerate() {
-                let (x, y) = map(p);
-                d.push_str(&format!("{}{x:.4} {y:.4}", if i == 0 { "M" } else { " L" }));
-            }
-            if c.closed {
-                d.push_str(" Z");
-            }
-            out.push_str(&format!(
-                "    <path d=\"{d}\" fill=\"none\" stroke=\"black\" stroke-width=\"0.2\"/>\n"
-            ));
         }
         out.push_str("  </g>\n");
     }

@@ -7,6 +7,7 @@
 use crate::args::Args;
 use crate::error::{CadError, Result};
 use crate::export;
+use crate::geom2d::boolean::{boolean, BoolOp};
 use crate::geom2d::Shape;
 use crate::geom3d::{self, Mesh};
 use crate::math::{rad, Mat4, Vec2, Vec3};
@@ -108,6 +109,13 @@ impl Interpreter {
             "translate" => self.op_translate(&args),
             "rotate" => self.op_rotate(&args),
             "scale" => self.op_scale(&args),
+            // ---- 2D boolean & edge ops (deterministic → recorded in history) ----
+            "union" => self.op_bool(&args, BoolOp::Union),
+            "subtract" => self.op_bool(&args, BoolOp::Difference),
+            "intersect" => self.op_bool(&args, BoolOp::Intersection),
+            "xor" => self.op_bool(&args, BoolOp::Xor),
+            "fillet" => self.op_fillet(&args),
+            "chamfer" => self.op_chamfer(&args),
             // ---- skills ----
             "skill" => return self.run_skill(rest, raw),
             // ---- scene / meta ----
@@ -361,6 +369,87 @@ impl Interpreter {
             .mul(&Mat4::translation(-pivot));
         e.geom.transform(&m);
         Ok(format!("scaled '{name}' ×{s} ({about})"))
+    }
+
+    // ---- 2D boolean & edge operations --------------------------------------
+
+    /// Clone out the [`Shape`] geometry of a named entity, ending the borrow so
+    /// the caller can mutate the scene afterwards. Missing entities and meshes
+    /// both surface as the same operand error.
+    fn clone_shape(&self, name: &str) -> Result<Shape> {
+        let entity = self
+            .scene
+            .get(name)
+            .ok_or_else(|| CadError::Arg("boolean needs two 2D shapes".into()))?;
+        match &entity.geom {
+            Geometry::Shape(s) => Ok(s.clone()),
+            Geometry::Mesh(_) => Err(CadError::Arg("boolean needs two 2D shapes".into())),
+        }
+    }
+
+    /// `union|subtract|intersect|xor <a> <b> [name=]` — combine two 2D shapes
+    /// into a NEW shape. Operands are left untouched (non-destructive).
+    fn op_bool(&mut self, args: &Args, op: BoolOp) -> Result<String> {
+        let a_name = args
+            .pos_str(0)
+            .ok_or_else(|| CadError::Arg("boolean needs two 2D shapes".into()))?
+            .to_string();
+        let b_name = args
+            .pos_str(1)
+            .ok_or_else(|| CadError::Arg("boolean needs two 2D shapes".into()))?
+            .to_string();
+
+        // Resolve both operands as shape geometry, cloning them out first so the
+        // immutable borrow of the scene ends before we add the result entity.
+        let a_shape = self.clone_shape(&a_name)?;
+        let b_shape = self.clone_shape(&b_name)?;
+
+        let result = boolean(&a_shape, &b_shape, op)?;
+        if result.is_empty() {
+            return Err(CadError::Geometry("empty result".into()));
+        }
+
+        let name = args.name().unwrap_or_else(|| {
+            if op == BoolOp::Difference {
+                format!("{a_name}_sub_{b_name}")
+            } else {
+                self.scene.auto_name("bool")
+            }
+        });
+        self.scene.add(name.clone(), Geometry::Shape(result));
+
+        let verb = match op {
+            BoolOp::Union => "union",
+            BoolOp::Difference => "subtract",
+            BoolOp::Intersection => "intersect",
+            BoolOp::Xor => "xor",
+        };
+        Ok(format!("{verb} '{a_name}','{b_name}' → '{name}'"))
+    }
+
+    fn op_fillet(&mut self, args: &Args) -> Result<String> {
+        let r = args.pos_f64(0)?;
+        let seg = args.usize_or("seg", 16)?;
+        let target = args.get_str("target").map(|s| s.to_string());
+        let e = self.scene.resolve_mut(target.as_deref())?;
+        let name = e.name.clone();
+        match &mut e.geom {
+            Geometry::Shape(s) => *s = s.fillet(r, seg),
+            Geometry::Mesh(_) => return Err(CadError::Arg("fillet needs a 2D shape".into())),
+        }
+        Ok(format!("filleted '{name}' (r{r}, {seg} seg)"))
+    }
+
+    fn op_chamfer(&mut self, args: &Args) -> Result<String> {
+        let d = args.pos_f64(0)?;
+        let target = args.get_str("target").map(|s| s.to_string());
+        let e = self.scene.resolve_mut(target.as_deref())?;
+        let name = e.name.clone();
+        match &mut e.geom {
+            Geometry::Shape(s) => *s = s.chamfer(d),
+            Geometry::Mesh(_) => return Err(CadError::Arg("chamfer needs a 2D shape".into())),
+        }
+        Ok(format!("chamfered '{name}' (d{d})"))
     }
 
     // ---- skills ------------------------------------------------------------

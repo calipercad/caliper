@@ -1,7 +1,7 @@
 //! Minimal DXF (AutoCAD R2000 / AC1015) writer. Emits each contour as an
 //! `LWPOLYLINE`, which LibreCAD, AutoCAD, Fusion and Inkscape all import.
 
-use crate::geom2d::Shape;
+use crate::geom2d::{ContourKind, Shape};
 
 pub fn to_dxf(shapes: &[(&str, &Shape)], mm: f64) -> String {
     let mut out = String::new();
@@ -20,16 +20,50 @@ pub fn to_dxf(shapes: &[(&str, &Shape)], mm: f64) -> String {
     push(&mut out, 2, "ENTITIES");
     for (_, s) in shapes {
         for c in &s.contours {
-            if c.points.len() < 2 {
-                continue;
-            }
-            push(&mut out, 0, "LWPOLYLINE");
-            push(&mut out, 8, "0"); // layer
-            push(&mut out, 90, &c.points.len().to_string());
-            push(&mut out, 70, if c.closed { "1" } else { "0" });
-            for p in &c.points {
-                push(&mut out, 10, &format!("{:.6}", p.x * mm));
-                push(&mut out, 20, &format!("{:.6}", p.y * mm));
+            match &c.kind {
+                // A known circle primitive round-trips as a true CIRCLE entity.
+                ContourKind::Circle { c: center, r } => {
+                    push(&mut out, 0, "CIRCLE");
+                    push(&mut out, 8, "0"); // layer
+                    push(&mut out, 10, &format!("{:.6}", center.x * mm));
+                    push(&mut out, 20, &format!("{:.6}", center.y * mm));
+                    push(&mut out, 40, &format!("{:.6}", *r * mm));
+                }
+                // A known arc primitive round-trips as an ARC entity. DXF arcs are
+                // CCW from start (50) to end (51); normalize so end > start.
+                ContourKind::Arc {
+                    c: center,
+                    r,
+                    a0,
+                    a1,
+                } => {
+                    let start = *a0;
+                    let mut end = *a1;
+                    while end <= start {
+                        end += 360.0;
+                    }
+                    push(&mut out, 0, "ARC");
+                    push(&mut out, 8, "0"); // layer
+                    push(&mut out, 10, &format!("{:.6}", center.x * mm));
+                    push(&mut out, 20, &format!("{:.6}", center.y * mm));
+                    push(&mut out, 40, &format!("{:.6}", *r * mm));
+                    push(&mut out, 50, &format!("{start:.6}"));
+                    push(&mut out, 51, &format!("{end:.6}"));
+                }
+                // Everything else keeps the tessellated LWPOLYLINE path.
+                ContourKind::Polyline => {
+                    if c.points.len() < 2 {
+                        continue;
+                    }
+                    push(&mut out, 0, "LWPOLYLINE");
+                    push(&mut out, 8, "0"); // layer
+                    push(&mut out, 90, &c.points.len().to_string());
+                    push(&mut out, 70, if c.closed { "1" } else { "0" });
+                    for p in &c.points {
+                        push(&mut out, 10, &format!("{:.6}", p.x * mm));
+                        push(&mut out, 20, &format!("{:.6}", p.y * mm));
+                    }
+                }
             }
         }
     }

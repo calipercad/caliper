@@ -25,6 +25,12 @@ OPERATIONS (default target = current selection; override with target=<id>)
   translate <x> <y> [z] [target=]                  move
   rotate <deg> [axis=x|y|z] [about=center|origin] [target=]
   scale <factor> [about=center|origin] [target=]
+  union <a> <b> [name=]                            a ∪ b  (2 shapes -> new shape)
+  subtract <a> <b> [name=]                         a − b
+  intersect <a> <b> [name=]                        a ∩ b
+  xor <a> <b> [name=]                              a ⊕ b
+  fillet <r> [seg=16] [target=]                    round contour corners
+  chamfer <d> [target=]                            bevel contour corners
 
 SKILLS (parametric generators — run `skills` to list)
   skill gear teeth=<n> module=<mm> [pressure=20] [bore=<mm>] [thickness=<mm>]

@@ -213,78 +213,359 @@ impl Mesh {
         }
         m
     }
+
+    // ---- topology checks ---------------------------------------------------
+
+    /// Map every vertex index to a canonical representative index after
+    /// snap-deduping coincident vertices on a grid ~1e-6 of the extent. This is
+    /// what makes the shared cap/wall ring vertices (which appear once in
+    /// `verts` but are referenced by both caps and walls) count as a single
+    /// topological vertex.
+    fn canonical_index_map(&self) -> Vec<usize> {
+        use std::collections::HashMap;
+        let n = self.verts.len();
+        let mut canon = vec![0usize; n];
+        if n == 0 {
+            return canon;
+        }
+        let bb = self.bbox();
+        let sz = bb.size();
+        let ext = sz.x.max(sz.y).max(sz.z).max(1.0);
+        let grid = (ext * 1e-6).max(EPS);
+        let inv = 1.0 / grid;
+        let mut map: HashMap<(i64, i64, i64), usize> = HashMap::new();
+        for (i, &v) in self.verts.iter().enumerate() {
+            let k = (
+                ((v.x - bb.min.x) * inv).round() as i64,
+                ((v.y - bb.min.y) * inv).round() as i64,
+                ((v.z - bb.min.z) * inv).round() as i64,
+            );
+            let rep = *map.entry(k).or_insert(i);
+            canon[i] = rep;
+        }
+        canon
+    }
+
+    /// A closed orientable 2-manifold: every undirected edge is shared by
+    /// exactly two oppositely-wound triangles. Vertices are snap-deduped first
+    /// so the single shared ring welds caps to walls.
+    pub fn is_closed_manifold(&self) -> bool {
+        use std::collections::HashMap;
+        if self.tris.is_empty() {
+            return false;
+        }
+        let canon = self.canonical_index_map();
+        let mut dir: HashMap<(usize, usize), i32> = HashMap::new();
+        for t in &self.tris {
+            let a = canon[t[0]];
+            let b = canon[t[1]];
+            let c = canon[t[2]];
+            if a == b || b == c || c == a {
+                return false; // degenerate triangle after dedup
+            }
+            for (u, v) in [(a, b), (b, c), (c, a)] {
+                *dir.entry((u, v)).or_insert(0) += 1;
+            }
+        }
+        for (&(u, v), &cnt) in &dir {
+            if cnt != 1 {
+                return false; // a directed edge used more than once
+            }
+            match dir.get(&(v, u)) {
+                Some(&rev) if rev == 1 => {}
+                _ => return false, // missing or duplicated opposite half-edge
+            }
+        }
+        true
+    }
+
+    /// Euler characteristic `V - E + F` over snap-deduped vertices and unique
+    /// undirected edges. For a closed manifold this equals `2 - 2*genus`, so a
+    /// plain solid gives 2, one through-hole (genus 1) gives 0, three bores
+    /// (genus 3) give -4.
+    pub fn euler_characteristic(&self) -> i64 {
+        use std::collections::HashSet;
+        let canon = self.canonical_index_map();
+        let mut vset: HashSet<usize> = HashSet::new();
+        for &c in &canon {
+            vset.insert(c);
+        }
+        let mut eset: HashSet<(usize, usize)> = HashSet::new();
+        for t in &self.tris {
+            let a = canon[t[0]];
+            let b = canon[t[1]];
+            let c = canon[t[2]];
+            for (u, w) in [(a, b), (b, c), (c, a)] {
+                let e = if u < w { (u, w) } else { (w, u) };
+                eset.insert(e);
+            }
+        }
+        let v = vset.len() as i64;
+        let e = eset.len() as i64;
+        let f = self.tris.len() as i64;
+        v - e + f
+    }
 }
 
-/// Extrude a 2D shape along +Z by `height`. Caps are triangulated from the
-/// outer contour (index 0) via ear clipping; side walls are generated for every
-/// closed contour so holes become through-walls.
+/// Extrude a 2D shape along +Z by `height`. The shape is normalized (solid
+/// outers CCW, holes CW) and split into regions; each region's cap is
+/// triangulated with hole bridging and both caps plus the side walls index
+/// into ONE shared bottom+top vertex ring (the weld fix), so the result is a
+/// watertight closed manifold and every bore becomes a true through-wall.
 pub fn extrude(shape: &Shape, height: f64) -> Result<Mesh> {
-    if shape.contours.is_empty() {
+    let mut s = shape.clone();
+    s.normalize_windings();
+    if s.is_empty() {
         return Err(CadError::Geometry("cannot extrude empty shape".into()));
     }
+
     let mut m = Mesh::new();
-    let outer = &shape.contours[0];
-    if outer.points.len() < 3 {
+    let mut built = false;
+
+    for region in s.regions() {
+        if region.outer.points.len() < 3 {
+            return Err(CadError::Geometry(
+                "outer contour needs at least 3 points to extrude".into(),
+            ));
+        }
+        let holes_slices: Vec<&[Vec2]> =
+            region.holes.iter().map(|h| h.points.as_slice()).collect();
+        // `ring` = outer verts followed by each hole's verts, in the CW order
+        // normalize produced. `tris2d` are CCW index triples into `ring`.
+        let (ring, tris2d) = triangulate_with_holes(&region.outer.points, &holes_slices)?;
+
+        // ONE shared bottom ring and ONE shared top ring — both caps and walls
+        // index into these (the weld fix). Bridges live only in `tris2d`
+        // topology, never as extra vertices.
+        let b0 = m.verts.len();
+        for &p in &ring {
+            m.verts.push(Vec3::new(p.x, p.y, 0.0));
+        }
+        let t0 = m.verts.len();
+        for &p in &ring {
+            m.verts.push(Vec3::new(p.x, p.y, height));
+        }
+
+        // Caps from the triangulation.
+        for t in &tris2d {
+            // bottom face points -Z: reverse winding
+            m.tris.push([b0 + t[0], b0 + t[2], b0 + t[1]]);
+            // top face points +Z
+            m.tris.push([t0 + t[0], t0 + t[1], t0 + t[2]]);
+        }
+
+        // Side walls, one contiguous span per original loop boundary inside
+        // `ring`: the outer loop first, then each hole. The single quad formula
+        // yields OUTWARD walls for the CCW outer and INWARD walls for the CW
+        // holes — no per-loop special-casing.
+        let mut start = 0usize;
+        push_wall(&mut m, b0, t0, start, region.outer.points.len());
+        start += region.outer.points.len();
+        for h in &region.holes {
+            let len = h.points.len();
+            push_wall(&mut m, b0, t0, start, len);
+            start += len;
+        }
+
+        built = true;
+    }
+
+    if !built {
+        return Err(CadError::Geometry("cannot extrude empty shape".into()));
+    }
+    Ok(m)
+}
+
+/// Emit the side-wall quads for one loop occupying `[start, start+len)` inside
+/// the shared bottom (`b0`) and top (`t0`) rings.
+fn push_wall(m: &mut Mesh, b0: usize, t0: usize, start: usize, len: usize) {
+    if len < 2 {
+        return;
+    }
+    for i in 0..len {
+        let ni = (i + 1) % len;
+        let bi = b0 + start + i;
+        let bni = b0 + start + ni;
+        let ti = t0 + start + i;
+        let tni = t0 + start + ni;
+        m.tris.push([bi, bni, tni]);
+        m.tris.push([bi, tni, ti]);
+    }
+}
+
+/// Triangulate a CCW `outer` polygon with CW `holes` using Eberly's
+/// keyhole hole-bridging. Returns `(ring, tris)` where `ring` is the flat
+/// vertex list — `outer` verts followed by each hole's verts in order — and
+/// `tris` are CCW index triples into `ring`. Bridges appear only as interior
+/// diagonals shared by two triangles (they cancel), so the cap is watertight
+/// and the ring layout matches the extrude wall spans exactly.
+pub fn triangulate_with_holes(
+    outer: &[Vec2],
+    holes: &[&[Vec2]],
+) -> Result<(Vec<Vec2>, Vec<[usize; 3]>)> {
+    if outer.len() < 3 {
         return Err(CadError::Geometry(
-            "outer contour needs at least 3 points to extrude".into(),
+            "outer contour needs at least 3 points to triangulate".into(),
         ));
     }
 
-    // Bottom and top rings for every contour, remembering index offsets.
-    let mut offsets = Vec::new();
-    for c in &shape.contours {
-        let base = m.verts.len();
-        offsets.push((base, c.points.len()));
-        for &p in &c.points {
-            m.verts.push(Vec3::new(p.x, p.y, 0.0));
-        }
-        for &p in &c.points {
-            m.verts.push(Vec3::new(p.x, p.y, height));
-        }
+    // Shared ring: outer verts, then each hole's verts in the given order.
+    let mut ring: Vec<Vec2> = Vec::with_capacity(outer.len());
+    ring.extend_from_slice(outer);
+    let mut hole_base: Vec<usize> = Vec::with_capacity(holes.len());
+    for h in holes {
+        hole_base.push(ring.len());
+        ring.extend_from_slice(h);
     }
 
-    // Side walls per contour.
-    for (ci, c) in shape.contours.iter().enumerate() {
-        let (base, n) = offsets[ci];
-        if !c.closed || n < 2 {
+    // Working simple polygon as a list of ring indices; start with the outer
+    // loop (CCW).
+    let mut merged: Vec<usize> = (0..outer.len()).collect();
+
+    // Merge holes right-to-left (descending rightmost x) so successive keyhole
+    // bridges never overlap an already-inserted hole.
+    let mut order: Vec<usize> = (0..holes.len()).collect();
+    order.sort_by(|&i, &j| {
+        let xi = rightmost_x(holes[i]);
+        let xj = rightmost_x(holes[j]);
+        xj.partial_cmp(&xi).unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    for &hi in &order {
+        let hole = holes[hi];
+        if hole.len() < 3 {
+            continue; // degenerate hole: leave it to the wall pass only
+        }
+        let hk = hole.len();
+        let hb = hole_base[hi];
+
+        // Rightmost vertex M of the hole.
+        let mut mi = 0usize;
+        for i in 1..hk {
+            if hole[i].x > hole[mi].x {
+                mi = i;
+            }
+        }
+        let m_pt = hole[mi];
+
+        // Mutually visible position P in the current merged polygon.
+        let pp = match find_bridge_vertex(&merged, &ring, m_pt) {
+            Some(p) => p,
+            None => continue, // no visible edge (degenerate); skip its cap hole
+        };
+
+        // Splice the hole into the merged polygon via the two-way bridge
+        // P<->M: after P, walk the hole in its stored CW order from M back to M,
+        // then duplicate P. The two coincident bridge edges form the seam.
+        let mut hole_seq: Vec<usize> = Vec::with_capacity(hk + 1);
+        for step in 0..=hk {
+            hole_seq.push(hb + (mi + step) % hk);
+        }
+        let mut next: Vec<usize> = Vec::with_capacity(merged.len() + hole_seq.len() + 1);
+        next.extend_from_slice(&merged[..=pp]);
+        next.extend_from_slice(&hole_seq);
+        next.push(merged[pp]);
+        next.extend_from_slice(&merged[pp + 1..]);
+        merged = next;
+    }
+
+    // Ear-clip the merged simple polygon (reusing the shared ear clipper /
+    // fan fallback), then remap the local ears back to ring indices.
+    let positions: Vec<Vec2> = merged.iter().map(|&ri| ring[ri]).collect();
+    let local = triangulate(&positions)?;
+    let tris: Vec<[usize; 3]> = local
+        .iter()
+        .map(|t| [merged[t[0]], merged[t[1]], merged[t[2]]])
+        .collect();
+
+    Ok((ring, tris))
+}
+
+/// Largest x coordinate among a point list (helper for hole ordering).
+fn rightmost_x(pts: &[Vec2]) -> f64 {
+    pts.iter().fold(f64::NEG_INFINITY, |acc, p| acc.max(p.x))
+}
+
+/// Eberly mutual-visibility search: from hole vertex `m`, cast a +X ray to the
+/// nearest merged-polygon edge, take that edge's larger-x endpoint as the
+/// candidate `P`, then, if a reflex vertex lies inside triangle `(M, hit, P)`,
+/// choose the reflex vertex with the smallest angle to +X instead. Returns the
+/// position of `P` within `merged`.
+fn find_bridge_vertex(merged: &[usize], ring: &[Vec2], m: Vec2) -> Option<usize> {
+    let n = merged.len();
+    if n < 3 {
+        return None;
+    }
+
+    // Nearest +X ray hit against merged edges crossing the line y = m.y.
+    let mut best_x = f64::INFINITY;
+    let mut hit_edge: Option<(usize, usize)> = None;
+    let mut hit_pt = Vec2::ZERO;
+    for i in 0..n {
+        let ai = i;
+        let bi = (i + 1) % n;
+        let a = ring[merged[ai]];
+        let b = ring[merged[bi]];
+        // half-open straddle test avoids double-counting shared vertices
+        let straddle = (a.y <= m.y && b.y > m.y) || (b.y <= m.y && a.y > m.y);
+        if !straddle {
             continue;
         }
-        let top = base + n;
-        for i in 0..n {
-            let ni = (i + 1) % n;
-            let b0 = base + i;
-            let b1 = base + ni;
-            let t0 = top + i;
-            let t1 = top + ni;
-            m.tris.push([b0, b1, t1]);
-            m.tris.push([b0, t1, t0]);
+        let dy = b.y - a.y;
+        if dy.abs() < EPS {
+            continue;
+        }
+        let t = (m.y - a.y) / dy;
+        let x = a.x + t * (b.x - a.x);
+        if x >= m.x - EPS && x < best_x {
+            best_x = x;
+            hit_edge = Some((ai, bi));
+            hit_pt = Vec2::new(x, m.y);
         }
     }
 
-    // Caps from the outer contour.
-    let mut poly = outer.clone();
-    poly.ensure_ccw();
-    let tris2d = triangulate(&poly.points)?;
-    let (base, n) = offsets[0];
-    // Map ear-clip indices (into poly.points) back onto the mesh ring. Because
-    // ensure_ccw may have reversed the point order, rebuild the ring here.
-    let ring_base = m.verts.len();
-    for &p in &poly.points {
-        m.verts.push(Vec3::new(p.x, p.y, 0.0));
-    }
-    let ring_top = m.verts.len();
-    for &p in &poly.points {
-        m.verts.push(Vec3::new(p.x, p.y, height));
-    }
-    let _ = (base, n); // side walls already used the original ring
-    for t in &tris2d {
-        // bottom faces downward (-z): reverse winding
-        m.tris.push([ring_base + t[0], ring_base + t[2], ring_base + t[1]]);
-        // top faces upward (+z)
-        m.tris.push([ring_top + t[0], ring_top + t[1], ring_top + t[2]]);
+    let (ai, bi) = hit_edge?;
+    let a = ring[merged[ai]];
+    let b = ring[merged[bi]];
+    // Candidate P: the intersected edge's endpoint with the larger x.
+    let p_pos = if a.x >= b.x { ai } else { bi };
+    let p_pt = ring[merged[p_pos]];
+
+    // If the ray hit a vertex directly, it is trivially visible.
+    if (p_pt - hit_pt).len() < EPS {
+        return Some(p_pos);
     }
 
-    Ok(m)
+    // Otherwise consult reflex vertices inside triangle (M, hit, P).
+    let tri = [m, hit_pt, p_pt];
+    let mut chosen = p_pos;
+    let mut best_angle = (p_pt - m).y.atan2((p_pt - m).x).abs();
+    let mut best_dist = (p_pt - m).len_sq();
+    for i in 0..n {
+        if i == p_pos {
+            continue;
+        }
+        let vprev = ring[merged[(i + n - 1) % n]];
+        let v = ring[merged[i]];
+        let vnext = ring[merged[(i + 1) % n]];
+        // reflex for a CCW polygon: interior turn is clockwise
+        let reflex = (v - vprev).cross(vnext - v) < 0.0;
+        if !reflex {
+            continue;
+        }
+        if !point_in_tri(v, tri[0], tri[1], tri[2]) {
+            continue;
+        }
+        let d = v - m;
+        let ang = d.y.atan2(d.x).abs();
+        let dist = d.len_sq();
+        if ang < best_angle - EPS || (ang < best_angle + EPS && dist < best_dist) {
+            best_angle = ang;
+            best_dist = dist;
+            chosen = i;
+        }
+    }
+    Some(chosen)
 }
 
 /// Ear-clipping triangulation of a simple polygon (CCW). Returns index triples
@@ -313,13 +594,22 @@ pub fn triangulate(pts: &[Vec2]) -> Result<Vec<[usize; 3]>> {
             if (b - a).cross(c - b) <= EPS {
                 continue;
             }
-            // no other vertex inside triangle a,b,c
+            // no other vertex STRICTLY inside triangle a,b,c. Vertices that
+            // coincide with an ear corner are skipped: keyhole hole-bridging
+            // (see `triangulate_with_holes`) splices duplicate bridge endpoints
+            // into the polygon, and a strict/coincidence-aware test is what lets
+            // the ear clipper triangulate that zero-width slit instead of
+            // stalling into the fan fallback.
             let mut ear = true;
             for &k in &idx {
                 if k == i0 || k == i1 || k == i2 {
                     continue;
                 }
-                if point_in_tri(pts[k], a, b, c) {
+                let p = pts[k];
+                if (p - a).len_sq() < EPS || (p - b).len_sq() < EPS || (p - c).len_sq() < EPS {
+                    continue; // coincident with a corner (bridge duplicate)
+                }
+                if point_in_tri_strict(p, a, b, c) {
                     ear = false;
                     break;
                 }
@@ -353,6 +643,17 @@ fn point_in_tri(p: Vec2, a: Vec2, b: Vec2, c: Vec2) -> bool {
     let has_neg = d1 < 0.0 || d2 < 0.0 || d3 < 0.0;
     let has_pos = d1 > 0.0 || d2 > 0.0 || d3 > 0.0;
     !(has_neg && has_pos)
+}
+
+/// Strictly-inside test (all three edge signs agree by more than `EPS`); points
+/// on or near an edge are NOT inside. Used by the ear clipper so a vertex lying
+/// on a candidate ear's boundary — common along keyhole bridge seams — does not
+/// spuriously veto the ear.
+fn point_in_tri_strict(p: Vec2, a: Vec2, b: Vec2, c: Vec2) -> bool {
+    let d1 = (p - a).cross(b - a);
+    let d2 = (p - b).cross(c - b);
+    let d3 = (p - c).cross(a - c);
+    (d1 < -EPS && d2 < -EPS && d3 < -EPS) || (d1 > EPS && d2 > EPS && d3 > EPS)
 }
 
 /// Revolve an open profile (list of XY points, X = radius, Y = height) around

@@ -20,8 +20,8 @@ foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
 | Phase | Version | Theme | State |
 |---|---|---|---|
 | 0 | v0.1 | Foundation | ✅ complete |
-| 1 | v0.2 | Robust 2D geometry (booleans, fillets, real holes) | ⬜ next |
-| 2 | v0.3 | Text & engraving + layered cut/score/engrave export | ⬜ |
+| 1 | v0.2 | Robust 2D geometry (booleans, fillets, real holes) | ✅ complete |
+| 2 | v0.3 | Text & engraving + layered cut/score/engrave export | ⬜ next |
 | 3 | v0.4 | 3D CSG, fillets/chamfers, shell/offset | ⬜ |
 | 4 | v0.5 | Drafting & rendering (HLR, shading, views, arrays, dims) | ⬜ |
 | 5 | v0.6 | Library explosion (15+ maker/craftsman skills) | ⬜ |
@@ -70,14 +70,14 @@ and — the headline — **real holes that survive extrusion**.
   `<circle>`/`<rect>` in SVG for cleaner cutter paths.
 
 **Work items.**
-- [ ] `geom2d/boolean.rs`: `union`/`difference`/`intersection`/`xor` on shapes.
-- [ ] Winding-based outer/hole classification for boolean results.
-- [ ] Language: `union`, `subtract`, `intersect` commands (2 operands → new entity).
-- [ ] Rework `extrude` to triangulate holed faces (holes cut through caps).
-- [ ] `fillet` / `chamfer` commands for 2D contours.
-- [ ] DXF/SVG: emit primitive `CIRCLE`/`ARC`/`<circle>` when geometry is known.
-- [ ] Tests: boolean truth table, hole-through-extrude (STL manifold check),
-      fillet corner count/tangency, exporter primitive emission.
+- [x] `geom2d/boolean.rs`: `union`/`difference`/`intersection`/`xor` on shapes.
+- [x] Winding-based outer/hole classification for boolean results.
+- [x] Language: `union`, `subtract`, `intersect` (+ `xor`) commands (2 operands → new entity).
+- [x] Rework `extrude` to triangulate holed faces (holes cut through caps).
+- [x] `fillet` / `chamfer` commands for 2D contours.
+- [x] DXF/SVG: emit primitive `CIRCLE`/`ARC`/`<circle>` when geometry is known.
+- [x] Tests: boolean truth table, hole-through-extrude (manifold + Euler/genus
+      check), fillet corner count/tangency, exporter primitive emission.
 
 **Checkpoint.** `subtract` a circle from a rect, `extrude`, export STL → the hole
 is a real through-hole (verified by a manifold/genus test in code). Demo:

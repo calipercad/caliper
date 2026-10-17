@@ -37,8 +37,10 @@ cad-assist/                 workspace root (no package)
 │   │   └── src/
 │   │       ├── math.rs         Vec2/Vec3/Mat4, angles, EPS
 │   │       ├── bbox.rs         Aabb2/Aabb3
-│   │       ├── geom2d.rs       Contour, Shape + builders
-│   │       ├── geom3d.rs       Mesh + primitives, extrude, revolve, triangulate
+│   │       ├── geom2d.rs       Contour, Shape + builders, windings, fillet/chamfer
+│   │       ├── geom2d/
+│   │       │   └── boolean.rs  exact-integer union/difference/intersection/xor
+│   │       ├── geom3d.rs       Mesh + primitives, holed extrude, revolve, triangulate
 │   │       ├── scene.rs        Units, Geometry, Entity, Scene
 │   │       ├── args.rs         positional/option arg parsing
 │   │       ├── skills/         Skill trait + registry + built-ins
@@ -48,6 +50,7 @@ cad-assist/                 workspace root (no package)
 │   │       ├── script/         tokenizer, Interpreter, reference.txt
 │   │       └── lib.rs          module wiring + tests
 │   └── cad-cli/            the `cad` binary (REPL, run, ai, new)
+│   │   └── tests/            integration tests (e.g. phase1.rs)
 ├── examples/               runnable .cad scripts
 └── docs/                   this file + ROADMAP.md
 ```
@@ -56,15 +59,35 @@ cad-assist/                 workspace root (no package)
 
 - **`Vec2`/`Vec3`/`Mat4`** — column-major 4×4 affine transforms. All movement,
   rotation, and scaling flows through `Mat4` so 2D and 3D share one path.
-- **`Contour { points: Vec<Vec2>, closed: bool }`** — a single tessellated loop
-  or open polyline, with `signed_area`/`area`/`length`/`ensure_ccw`.
-- **`Shape { contours: Vec<Contour> }`** — one or more contours. Contour `[0]` is
-  the outer boundary; later contours are holes (`add_hole`). Builders: `rect`,
-  `circle`, `polygon`, `star`, `polyline`, `arc`.
+- **`Contour { points: Vec<Vec2>, closed: bool, kind: ContourKind }`** — a single
+  tessellated loop or open polyline, with `signed_area`/`area`/`length`/
+  `ensure_ccw`/`fillet`/`chamfer`. **`ContourKind`** (`Polyline | Circle | Arc`)
+  is a primitive hint recording when the points came from a known circle/arc, so
+  exporters can round-trip native entities. The points stay the single source of
+  truth; any point-mutating op (boolean, fillet, chamfer, non-rigid transform)
+  resets the hint to `Polyline`.
+- **`Shape { contours: Vec<Contour> }`** — one or more contours. After
+  `normalize_windings`, solids are CCW and holes CW, decided by nesting-depth
+  parity (so legacy CCW-hole shapes are repaired); `regions()` groups each hole
+  under its smallest containing shell as a **`Region { outer, holes }`**. Boolean
+  ops (`union`/`difference`/`intersection`/`xor`) delegate to `geom2d::boolean`
+  and return a classified `Shape`. Builders: `rect`, `circle`, `polygon`, `star`,
+  `polyline`, `arc`; edge ops: `fillet`, `chamfer`.
+- **`geom2d::boolean`** — the exact-integer planar-overlay clipper. Both shapes'
+  edges snap to a shared integer lattice (grid `= ext·1e-9`, keeping coords
+  `≲2^30` so `i128` orient/intersection stay exact); the arrangement of atomic
+  (crossing-free) edges is classified against the original float loops by op
+  predicate, traced into loops by exact rotational order (interior-on-left), and
+  classified outer/hole by nesting. A balance/trace guard returns a clean
+  "non-manifold or self-intersecting" error instead of junk.
 - **`Mesh { verts: Vec<Vec3>, tris: Vec<[usize;3]> }`** — CCW-from-outside
   triangles. `feature_edges(angle)` yields boundary + crease edges for clean
-  wireframes. Primitives: `cuboid`, `cylinder`, `cone`, `sphere`. Free functions:
-  `extrude`, `revolve`, `triangulate` (ear-clipping with a fan fallback).
+  wireframes; `is_closed_manifold` (half-edge balance) and
+  `euler_characteristic` (V−E+F → genus) verify watertightness. Primitives:
+  `cuboid`, `cylinder`, `cone`, `sphere`. Free functions: `extrude` (holed caps
+  via keyhole bridging over `regions()`, welded to one shared vertex ring),
+  `revolve`, `triangulate_with_holes`, `triangulate` (ear-clipping with a fan
+  fallback).
 - **`Geometry` = `Shape | Mesh`**, wrapped in **`Entity { name, geom }`**, held by
   **`Scene { entities, units, selected, auto_counter }`**. The scene tracks the
   current selection so most ops default to "the selected entity."
@@ -79,7 +102,8 @@ and a **history** of scene-modifying commands. The dispatch rule that keeps
 
 > **Record the highest-level deterministic command.**
 
-- Primitives/ops record their own line.
+- Primitives/ops record their own line — including the deterministic 2D boolean
+  (`union`/`subtract`/`intersect`/`xor`) and edge (`fillet`/`chamfer`) commands.
 - Skills (native *and* script) record only the single `skill …` line — a
   script-skill's expansion is rolled back out of history so replay re-expands it
   once, not twice.
@@ -92,13 +116,15 @@ so a saved script has exactly one, correct unit declaration.
 
 ## Known limitations (addressed by the roadmap)
 
-- **No booleans / CSG.** `extrude` builds side walls for every contour but caps
-  only the outer contour, so holes are correct in 2D output but *not* cut through
-  3D caps. True holes and part subtraction need polygon booleans (2D) and mesh
-  booleans (3D). → Roadmap Phases 1 & 3.
-- **No fillets/chamfers, no text, no dimensions.** → Phases 1, 2, 4.
-- **Exporters emit polylines only** (no true DXF `ARC`/`CIRCLE`, no G2/G3 arcs,
-  ASCII STL only). → Phases 1 & 7.
+- **No 3D mesh CSG.** 2D polygon booleans exist (Phase 1), and holes now cut
+  through extruded caps, but subtracting/uniting arbitrary *meshes* (e.g.
+  `box − cylinder`) needs BSP CSG. → Roadmap Phase 3.
+- **No 3D edge fillets/chamfers, no shell/offset.** 2D contour fillet/chamfer
+  ships in Phase 1; rounding mesh edges and hollowing solids → Phase 3.
+- **No text or dimensions.** → Phases 2 & 4.
+- **Exporter gaps remain**: no G2/G3 arc output in G-code, ASCII STL only (no
+  binary/3MF/PDF). DXF `CIRCLE`/`ARC` and SVG `<circle>` now round-trip. →
+  Phase 7.
 - **AI is single-shot** (generate → run), with no inspect-and-iterate loop. →
   Phase 6.
 
