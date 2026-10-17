@@ -21,8 +21,8 @@ foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
 |---|---|---|---|
 | 0 | v0.1 | Foundation | ✅ complete |
 | 1 | v0.2 | Robust 2D geometry (booleans, fillets, real holes) | ✅ complete |
-| 2 | v0.3 | Text & engraving + layered cut/score/engrave export | ⬜ next |
-| 3 | v0.4 | 3D CSG, fillets/chamfers, shell/offset | ⬜ |
+| 2 | v0.3 | Text & engraving + layered cut/score/engrave export | ✅ complete |
+| 3 | v0.4 | 3D CSG, fillets/chamfers, shell/offset | ⬜ next |
 | 4 | v0.5 | Drafting & rendering (HLR, shading, views, arrays, dims) | ⬜ |
 | 5 | v0.6 | Library explosion (15+ maker/craftsman skills) | ⬜ |
 | 6 | v0.7 | AI copilot (inspect-iterate-repair loop) | ⬜ |
@@ -112,12 +112,13 @@ conservative fallback that reports non-manifold input rather than emitting junk.
   makes a single SVG drive a multi-op cutter job.
 
 **Work items.**
-- [ ] `geom2d/text/hershey.rs` with embedded stroke font + `stroke_text()`.
-- [ ] `text` command (stroke path); alignment (`align=left|center`) & spacing.
-- [ ] Optional `glyf` outline parser → filled shapes for cutting.
-- [ ] `Entity.layer` / `role`; `layer <name>` and `role <cut|score|engrave>` cmds.
-- [ ] SVG layered/colored export; DXF named layers.
-- [ ] Tests: stroke text bbox/segment counts, layered SVG structure, DXF layers.
+- [x] `geom2d/text/` with an embedded single-stroke font + `stroke_text()`.
+- [x] `text` command (stroke path); alignment (`align=left|center|right`) & spacing.
+- [ ] Optional `glyf` outline parser → filled shapes for cutting. *(deferred — a
+      self-contained follow-up; stroke text is the shipped primary path.)*
+- [x] `Entity.layer` / `role`; `layer <name>` and `role <cut|score|engrave>` cmds.
+- [x] SVG layered/colored export; DXF named layers.
+- [x] Tests: stroke text bbox/alignment, layered SVG structure, DXF layers.
 
 **Checkpoint.** Engrave a label and export a layered SVG whose cut and engrave
 paths are on separate, correctly-colored layers. Demo:

@@ -68,6 +68,12 @@ impl Geometry {
 pub struct Entity {
     pub name: String,
     pub geom: Geometry,
+    /// Optional export layer. When unset, exporters fall back to the entity's
+    /// `role`, then to the default layer. See [`crate::export`].
+    pub layer: Option<String>,
+    /// Optional fabrication role (`cut` / `score` / `engrave` / …). Drives
+    /// per-layer stroke color and the fallback layer name on export.
+    pub role: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -104,10 +110,31 @@ impl Scene {
             self.entities.push(Entity {
                 name: name.clone(),
                 geom,
+                layer: None,
+                role: None,
             });
         }
         self.selected = Some(name.clone());
         name
+    }
+
+    /// Set an entity's `layer` and/or `role`, overwriting a field only when the
+    /// corresponding argument is `Some`. Resolves like [`Scene::resolve_mut`]
+    /// (defaulting to the current selection when `target` is `None`).
+    pub fn set_attrs(
+        &mut self,
+        target: Option<&str>,
+        layer: Option<String>,
+        role: Option<String>,
+    ) -> Result<String> {
+        let e = self.resolve_mut(target)?;
+        if layer.is_some() {
+            e.layer = layer;
+        }
+        if role.is_some() {
+            e.role = role;
+        }
+        Ok(e.name.clone())
     }
 
     pub fn get(&self, name: &str) -> Option<&Entity> {

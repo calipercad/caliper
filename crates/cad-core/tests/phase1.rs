@@ -3,7 +3,7 @@
 //!
 //! Driven entirely through the public API so it doubles as a contract check.
 
-use cad_core::export::{dxf, svg};
+use cad_core::export::{dxf, svg, Item};
 use cad_core::geom2d::boolean::{difference, intersection, union, xor};
 use cad_core::geom2d::{Contour, Shape};
 use cad_core::geom3d::{self, Mesh};
@@ -267,15 +267,15 @@ fn fillet_skips_smooth() {
 fn exporter_primitives() {
     // Circle primitive ⇒ native CIRCLE / <circle>.
     let circle = Shape::circle(8.0, 64);
-    let dxf_c = dxf::to_dxf(&[("c", &circle)], 1.0);
+    let dxf_c = dxf::to_dxf(&[Item::new("c", &circle)], 1.0);
     assert!(dxf_c.contains("CIRCLE"), "DXF CIRCLE entity");
     assert!(dxf_c.contains("\n40\n"), "DXF radius group");
-    let svg_c = svg::to_svg(&[("c", &circle)], 1.0);
+    let svg_c = svg::to_svg(&[Item::new("c", &circle)], 1.0);
     assert!(svg_c.contains("<circle"), "SVG <circle>");
 
     // Arc primitive ⇒ native ARC with start/end groups.
     let arc = Shape::arc(5.0, 0.0, 90.0, 48);
-    let dxf_a = dxf::to_dxf(&[("a", &arc)], 1.0);
+    let dxf_a = dxf::to_dxf(&[Item::new("a", &arc)], 1.0);
     assert!(dxf_a.contains("ARC"), "DXF ARC entity");
     assert!(dxf_a.contains("\n50\n") && dxf_a.contains("\n51\n"), "ARC angles");
 
@@ -283,8 +283,8 @@ fn exporter_primitives() {
     let a = square(0.0, 0.0, 2.0, 2.0);
     let b = square(1.0, 1.0, 3.0, 3.0);
     let u = union(&a, &b).unwrap();
-    let dxf_u = dxf::to_dxf(&[("u", &u)], 1.0);
+    let dxf_u = dxf::to_dxf(&[Item::new("u", &u)], 1.0);
     assert!(dxf_u.contains("LWPOLYLINE"), "boolean result is a polyline");
-    let svg_u = svg::to_svg(&[("u", &u)], 1.0);
+    let svg_u = svg::to_svg(&[Item::new("u", &u)], 1.0);
     assert!(svg_u.contains("<path"), "SVG path for polyline");
 }

@@ -12,6 +12,9 @@ accept name=<id>; if omitted, a name is auto-generated and auto-selected.
   star <points> <r_outer> <r_inner> [name=]        star
   arc <r> <start_deg> <end_deg> [seg=48] [name=]   open circular arc
   path <x1> <y1> <x2> <y2> ... [closed] [name=]    polyline (add `closed`)
+  text "<string>" [h=10] [align=left|center|right] [name=]
+                                                   single-stroke engraving/plot text
+  (any 2D primitive also accepts [layer=<name>] [role=cut|score|engrave])
 
 3D PRIMITIVES (solids; base sits on the XY plane)
   box <w> <d> <h> [name=]                          rectangular box
@@ -31,6 +34,8 @@ OPERATIONS (default target = current selection; override with target=<id>)
   xor <a> <b> [name=]                              a ⊕ b
   fillet <r> [seg=16] [target=]                    round contour corners
   chamfer <d> [target=]                            bevel contour corners
+  layer <name> [target=]                           set an entity's export layer
+  role <name> [target=]                            set cut|score|engrave (layer color)
 
 SKILLS (parametric generators — run `skills` to list)
   skill gear teeth=<n> module=<mm> [pressure=20] [bore=<mm>] [thickness=<mm>]
@@ -54,6 +59,8 @@ EXPORT
   export stl   <path> [name=]     3D printing / slicers
   export obj   <path> [name=]     3D mesh interchange
   (omit name= to export every matching entity — good for laser layouts)
+  SVG/DXF group entities onto layers (by layer=, else role=) and color each
+  layer by role: cut=black, score=blue, engrave=red.
 
 FILES & AI
   save <file.cad>        write the command history as a reproducible script

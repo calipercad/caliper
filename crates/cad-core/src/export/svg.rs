@@ -1,15 +1,21 @@
 //! SVG writer — the lingua franca for Cricut, Silhouette, laser cutters and
 //! vinyl plotters. Emits real millimetre dimensions with matching viewBox and
 //! one `<path>` per contour (fill:none, thin stroke = cut lines).
+//!
+//! Entities are grouped into **Inkscape layers** by their effective layer
+//! (explicit `layer`, else `role`, else `"0"`), and each layer is stroked with
+//! the conventional color for its role (cut=black, score=blue, engrave=red) so
+//! a single SVG drives a multi-operation cutter job.
 
 use crate::bbox::Aabb2;
-use crate::geom2d::{ContourKind, Shape};
+use crate::export::{role_color, Item};
+use crate::geom2d::ContourKind;
 
-pub fn to_svg(shapes: &[(&str, &Shape)], mm: f64) -> String {
+pub fn to_svg(items: &[Item], mm: f64) -> String {
     // Combined bounds (in mm), with a small margin.
     let mut b = Aabb2::empty();
-    for (_, s) in shapes {
-        let sb = s.bbox();
+    for it in items {
+        let sb = it.shape.bbox();
         if !sb.is_empty() {
             b.expand(sb.min);
             b.expand(sb.max);
@@ -33,7 +39,8 @@ pub fn to_svg(shapes: &[(&str, &Shape)], mm: f64) -> String {
     let mut out = String::new();
     out.push_str(&format!(
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
-         <svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" \
+         <svg xmlns=\"http://www.w3.org/2000/svg\" \
+         xmlns:inkscape=\"http://www.inkscape.org/namespaces/inkscape\" version=\"1.1\" \
          width=\"{wmm:.3}mm\" height=\"{hmm:.3}mm\" \
          viewBox=\"0 0 {wmm:.3} {hmm:.3}\">\n"
     ));
@@ -46,39 +53,64 @@ pub fn to_svg(shapes: &[(&str, &Shape)], mm: f64) -> String {
         (x, y)
     };
 
-    for (name, s) in shapes {
-        out.push_str(&format!("  <g id=\"{}\">\n", xml_escape(name)));
-        for c in &s.contours {
-            match &c.kind {
-                // A known circle primitive becomes a real <circle>: same y-flip
-                // map for the center, radius scaled to millimetres.
-                ContourKind::Circle { c: center, r } => {
-                    let (cx, cy) = map(*center);
-                    let rr = *r * mm;
-                    out.push_str(&format!(
-                        "    <circle cx=\"{cx:.4}\" cy=\"{cy:.4}\" r=\"{rr:.4}\" \
-                         fill=\"none\" stroke=\"black\" stroke-width=\"0.2\"/>\n"
-                    ));
-                }
-                // Arcs and polylines stay tessellated <path>s — arcs as polylines
-                // avoid the y-flip sweep-flag pitfall (conservative).
-                ContourKind::Arc { .. } | ContourKind::Polyline => {
-                    if c.points.is_empty() {
-                        continue;
+    // Distinct layers in first-appearance order.
+    let mut layers: Vec<&str> = Vec::new();
+    for it in items {
+        let l = it.layer_name();
+        if !layers.contains(&l) {
+            layers.push(l);
+        }
+    }
+
+    for layer in layers {
+        // Role color is taken from the first entity on this layer (entities on a
+        // role-derived layer share a role by construction).
+        let role = items
+            .iter()
+            .find(|it| it.layer_name() == layer)
+            .and_then(|it| it.role);
+        let (color, _) = role_color(role);
+        let lbl = xml_escape(layer);
+        out.push_str(&format!(
+            "  <g inkscape:groupmode=\"layer\" inkscape:label=\"{lbl}\" id=\"{lbl}\" \
+             fill=\"none\" stroke=\"{color}\" stroke-width=\"0.2\">\n"
+        ));
+
+        for it in items.iter().filter(|it| it.layer_name() == layer) {
+            out.push_str(&format!("    <g id=\"{}\">\n", xml_escape(it.name)));
+            for c in &it.shape.contours {
+                match &c.kind {
+                    // A known circle primitive becomes a real <circle>; stroke
+                    // and fill are inherited from the layer group.
+                    ContourKind::Circle { c: center, r } => {
+                        let (cx, cy) = map(*center);
+                        let rr = *r * mm;
+                        out.push_str(&format!(
+                            "      <circle cx=\"{cx:.4}\" cy=\"{cy:.4}\" r=\"{rr:.4}\"/>\n"
+                        ));
                     }
-                    let mut d = String::new();
-                    for (i, &p) in c.points.iter().enumerate() {
-                        let (x, y) = map(p);
-                        d.push_str(&format!("{}{x:.4} {y:.4}", if i == 0 { "M" } else { " L" }));
+                    // Arcs and polylines stay tessellated <path>s — arcs as
+                    // polylines avoid the y-flip sweep-flag pitfall.
+                    ContourKind::Arc { .. } | ContourKind::Polyline => {
+                        if c.points.is_empty() {
+                            continue;
+                        }
+                        let mut d = String::new();
+                        for (i, &p) in c.points.iter().enumerate() {
+                            let (x, y) = map(p);
+                            d.push_str(&format!(
+                                "{}{x:.4} {y:.4}",
+                                if i == 0 { "M" } else { " L" }
+                            ));
+                        }
+                        if c.closed {
+                            d.push_str(" Z");
+                        }
+                        out.push_str(&format!("      <path d=\"{d}\"/>\n"));
                     }
-                    if c.closed {
-                        d.push_str(" Z");
-                    }
-                    out.push_str(&format!(
-                        "    <path d=\"{d}\" fill=\"none\" stroke=\"black\" stroke-width=\"0.2\"/>\n"
-                    ));
                 }
             }
+            out.push_str("    </g>\n");
         }
         out.push_str("  </g>\n");
     }

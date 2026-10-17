@@ -13,6 +13,7 @@
 //! transform) resets the hint to [`ContourKind::Polyline`].
 
 pub mod boolean;
+pub mod text;
 
 use crate::bbox::Aabb2;
 use crate::math::{rad, Mat4, Vec2, Vec3, EPS, PI, TAU};

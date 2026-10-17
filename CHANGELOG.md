@@ -3,6 +3,34 @@
 All notable changes to cad-assist are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## [0.3.0] — Text & engraving + layered export
+
+Single-stroke text and layer/role semantics, so one exported file can drive a
+multi-operation cutter job (cut vs score vs engrave).
+
+### Added
+- **Single-stroke text** (`geom2d::text`): `stroke_text(text, height, align)`
+  lays out a built-in single-stroke vector font into a `Shape` of open
+  contours — ideal for pen plotters, drag-engravers, and laser scoring. The
+  font (`geom2d::text::font`) is authored in-tree as `const` data covering
+  printable ASCII (letters, digits, punctuation); no external files, no deps.
+  `Align::{Left,Center,Right}` positions the laid-out ink about the origin.
+- **`text` command**: `text "<string>" [h=10] [align=left|center|right]
+  [layer=] [role=]`.
+- **Layer / role on entities**: `Entity` gains optional `layer` and `role`
+  (`Scene::set_attrs`). Any 2D primitive accepts `layer=` / `role=` at creation;
+  standalone `layer <name> [target=]` and `role <name> [target=]` commands set
+  them on an existing entity. Both are history-recorded, so they round-trip
+  through `save`.
+- **Layered, role-colored export**: SVG groups entities into Inkscape layers
+  (`inkscape:groupmode="layer"`) by effective layer (explicit `layer`, else
+  `role`, else `"0"`); DXF emits a `TABLES`→`LAYER` section and places each
+  entity on its layer. Role colors: cut=black, score=blue, engrave=red
+  (`export::role_color`). Exporters now take `export::Item` (name + shape +
+  layer + role).
+- **Tests**: `crates/cad-core/tests/phase2.rs` — stroke-text bbox/alignment,
+  `text`/`layer`/`role` commands, save round-trip, and layered SVG/DXF output.
+
 ## [0.2.0] — Robust 2D geometry
 
 Booleans, fillets/chamfers, and **real holes that survive extrusion** — 2D is
@@ -81,5 +109,6 @@ First working release: a complete, tested vertical slice of the tool.
 - `path … closed` now treats `closed` as a flag rather than miscounting it as a
   coordinate; bare flags are recognised generally (`Args::flag`).
 
+[0.3.0]: #
 [0.2.0]: #
 [0.1.0]: #

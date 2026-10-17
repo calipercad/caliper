@@ -8,6 +8,7 @@ use crate::args::Args;
 use crate::error::{CadError, Result};
 use crate::export;
 use crate::geom2d::boolean::{boolean, BoolOp};
+use crate::geom2d::text::{self, Align};
 use crate::geom2d::Shape;
 use crate::geom3d::{self, Mesh};
 use crate::math::{rad, Mat4, Vec2, Vec3};
@@ -98,6 +99,7 @@ impl Interpreter {
             "star" => self.create_star(&args),
             "arc" => self.create_arc(&args),
             "path" => self.create_path(&args),
+            "text" => self.create_text(&args),
             // ---- 3D primitives ----
             "box" => self.create_box(&args),
             "cylinder" => self.create_cylinder(&args),
@@ -116,6 +118,9 @@ impl Interpreter {
             "xor" => self.op_bool(&args, BoolOp::Xor),
             "fillet" => self.op_fillet(&args),
             "chamfer" => self.op_chamfer(&args),
+            // ---- layer / role attributes (recorded → round-trip through save) ----
+            "layer" => self.op_layer(&args),
+            "role" => self.op_role(&args),
             // ---- skills ----
             "skill" => return self.run_skill(rest, raw),
             // ---- scene / meta ----
@@ -152,6 +157,36 @@ impl Interpreter {
         args.name().unwrap_or_else(|| self.scene.auto_name(prefix))
     }
 
+    /// Apply optional `layer=` / `role=` arguments to a just-created entity.
+    /// A no-op when neither is present.
+    fn apply_attrs(&mut self, name: &str, args: &Args) {
+        let layer = args.get_str("layer").map(str::to_string);
+        let role = args.get_str("role").map(str::to_string);
+        if layer.is_some() || role.is_some() {
+            let _ = self.scene.set_attrs(Some(name), layer, role);
+        }
+    }
+
+    /// `text <string> [h=10] [align=left|center|right] [layer=] [role=]` —
+    /// single-stroke engraving/plotting text as a new entity of open contours.
+    fn create_text(&mut self, args: &Args) -> Result<String> {
+        let s = args
+            .pos_str(0)
+            .ok_or_else(|| CadError::Arg("text needs a string".into()))?
+            .to_string();
+        let h = args.f64_or("h", 10.0)?;
+        let align = match args.str_or("align", "left") {
+            "center" => Align::Center,
+            "right" => Align::Right,
+            _ => Align::Left,
+        };
+        let shape = text::stroke_text(&s, h, align);
+        let name = self.name_or_auto(args, "text");
+        self.scene.add(name.clone(), Geometry::Shape(shape));
+        self.apply_attrs(&name, args);
+        Ok(format!("text '{name}' \"{s}\" h{h}"))
+    }
+
     fn create_rect(&mut self, args: &Args) -> Result<String> {
         let w = args.pos_f64(0)?;
         let h = args.pos_f64(1)?;
@@ -160,6 +195,7 @@ impl Interpreter {
         let shape = Shape::rect(w, h, rx, seg);
         let name = self.name_or_auto(args, "rect");
         self.scene.add(name.clone(), Geometry::Shape(shape));
+        self.apply_attrs(&name, args);
         Ok(format!("rect '{name}' {w}×{h}"))
     }
 
@@ -168,6 +204,7 @@ impl Interpreter {
         let seg = args.usize_or("seg", 64)?;
         let name = self.name_or_auto(args, "circle");
         self.scene.add(name.clone(), Geometry::Shape(Shape::circle(r, seg)));
+        self.apply_attrs(&name, args);
         Ok(format!("circle '{name}' r{r}"))
     }
 
@@ -177,6 +214,7 @@ impl Interpreter {
         let name = self.name_or_auto(args, "poly");
         self.scene
             .add(name.clone(), Geometry::Shape(Shape::polygon(sides, r)));
+        self.apply_attrs(&name, args);
         Ok(format!("polygon '{name}' {sides}-gon r{r}"))
     }
 
@@ -187,6 +225,7 @@ impl Interpreter {
         let name = self.name_or_auto(args, "star");
         self.scene
             .add(name.clone(), Geometry::Shape(Shape::star(points, ro, ri)));
+        self.apply_attrs(&name, args);
         Ok(format!("star '{name}' {points}pt"))
     }
 
@@ -198,6 +237,7 @@ impl Interpreter {
         let name = self.name_or_auto(args, "arc");
         self.scene
             .add(name.clone(), Geometry::Shape(Shape::arc(r, a0, a1, seg)));
+        self.apply_attrs(&name, args);
         Ok(format!("arc '{name}' r{r} {a0}°→{a1}°"))
     }
 
@@ -226,6 +266,7 @@ impl Interpreter {
         let name = self.name_or_auto(args, "path");
         self.scene
             .add(name.clone(), Geometry::Shape(Shape::polyline(pts, closed)));
+        self.apply_attrs(&name, args);
         Ok(format!("path '{name}' ({} pts)", args.positional.len() / 2))
     }
 
@@ -450,6 +491,34 @@ impl Interpreter {
             Geometry::Mesh(_) => return Err(CadError::Arg("chamfer needs a 2D shape".into())),
         }
         Ok(format!("chamfered '{name}' (d{d})"))
+    }
+
+    /// `layer <name> [target=]` — set the export layer of an entity (defaults to
+    /// the current selection). Recorded in history so it round-trips via `save`.
+    fn op_layer(&mut self, args: &Args) -> Result<String> {
+        let layer = args
+            .pos_str(0)
+            .ok_or_else(|| CadError::Arg("layer needs a name: layer <name> [target=]".into()))?
+            .to_string();
+        let target = args.get_str("target").map(|s| s.to_string());
+        let name = self
+            .scene
+            .set_attrs(target.as_deref(), Some(layer.clone()), None)?;
+        Ok(format!("'{name}' layer={layer}"))
+    }
+
+    /// `role <name> [target=]` — set the fabrication role (`cut`/`score`/
+    /// `engrave`/…) of an entity, which drives export layer color.
+    fn op_role(&mut self, args: &Args) -> Result<String> {
+        let role = args
+            .pos_str(0)
+            .ok_or_else(|| CadError::Arg("role needs a name: role <name> [target=]".into()))?
+            .to_string();
+        let target = args.get_str("target").map(|s| s.to_string());
+        let name = self
+            .scene
+            .set_attrs(target.as_deref(), None, Some(role.clone()))?;
+        Ok(format!("'{name}' role={role}"))
     }
 
     // ---- skills ------------------------------------------------------------

@@ -75,12 +75,12 @@ mod tests {
     fn export_svg_string() {
         let mut it = Interpreter::new();
         it.exec_line("rect 10 10 name=r").unwrap();
-        let shapes: Vec<(&str, &geom2d::Shape)> = it
+        let shapes: Vec<export::Item> = it
             .scene
             .entities
             .iter()
             .filter_map(|e| match &e.geom {
-                scene::Geometry::Shape(s) => Some((e.name.as_str(), s)),
+                scene::Geometry::Shape(s) => Some(export::Item::new(e.name.as_str(), s)),
                 _ => None,
             })
             .collect();

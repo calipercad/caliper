@@ -39,7 +39,8 @@ cad-assist/                 workspace root (no package)
 │   │       ├── bbox.rs         Aabb2/Aabb3
 │   │       ├── geom2d.rs       Contour, Shape + builders, windings, fillet/chamfer
 │   │       ├── geom2d/
-│   │       │   └── boolean.rs  exact-integer union/difference/intersection/xor
+│   │       │   ├── boolean.rs  exact-integer union/difference/intersection/xor
+│   │       │   └── text/       single-stroke font + stroke_text layout
 │   │       ├── geom3d.rs       Mesh + primitives, holed extrude, revolve, triangulate
 │   │       ├── scene.rs        Units, Geometry, Entity, Scene
 │   │       ├── args.rs         positional/option arg parsing
@@ -88,9 +89,18 @@ cad-assist/                 workspace root (no package)
   via keyhole bridging over `regions()`, welded to one shared vertex ring),
   `revolve`, `triangulate_with_holes`, `triangulate` (ear-clipping with a fan
   fallback).
-- **`Geometry` = `Shape | Mesh`**, wrapped in **`Entity { name, geom }`**, held by
-  **`Scene { entities, units, selected, auto_counter }`**. The scene tracks the
-  current selection so most ops default to "the selected entity."
+- **`Geometry` = `Shape | Mesh`**, wrapped in **`Entity { name, geom, layer,
+  role }`**, held by **`Scene { entities, units, selected, auto_counter }`**.
+  The scene tracks the current selection so most ops default to "the selected
+  entity." `layer`/`role` (both `Option<String>`, set via `Scene::set_attrs`)
+  are optional export attributes: exporters group by layer (falling back to
+  `role`, then `"0"`) and color by role.
+- **`geom2d::text`** — single-stroke text for engraving/plotting.
+  `stroke_text(text, height, align)` lays out the built-in in-tree single-stroke
+  vector font (`geom2d::text::font`, `const` data for printable ASCII) into a
+  `Shape` of **open** contours (one per pen stroke). Open, sub-triangle text is
+  for render/export only and is correctly ignored/rejected by the filled-region
+  ops (`area`/`regions`/`extrude`).
 - **`Units { Mm, Cm, In }`** — a document-level unit. Exporters scale by
   `to_mm()` so output is always physically correct regardless of authoring unit.
 
@@ -121,7 +131,8 @@ so a saved script has exactly one, correct unit declaration.
   `box − cylinder`) needs BSP CSG. → Roadmap Phase 3.
 - **No 3D edge fillets/chamfers, no shell/offset.** 2D contour fillet/chamfer
   ships in Phase 1; rounding mesh edges and hollowing solids → Phase 3.
-- **No text or dimensions.** → Phases 2 & 4.
+- **No dimensions.** Stroke text ships (Phase 2); dimensioned drawing sheets →
+  Phase 4.
 - **Exporter gaps remain**: no G2/G3 arc output in G-code, ASCII STL only (no
   binary/3MF/PDF). DXF `CIRCLE`/`ARC` and SVG `<circle>` now round-trip. →
   Phase 7.
