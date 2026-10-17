@@ -4,6 +4,7 @@
 //!   cad                     start the interactive shell (REPL)
 //!   cad run <file.cad>      execute a script and print its output
 //!   cad <file.cad>          shorthand for `run`
+//!   cad watch <file.cad>    re-run + render whenever the file is saved
 //!   cad ai <describe it>    generate a design with Claude and print/run it
 //!   cad new <name>          scaffold a starter script
 //!   cad skills              list available parametric skills
@@ -40,6 +41,13 @@ fn main() -> ExitCode {
             Some(path) => run_file(path),
             None => {
                 eprintln!("usage: cad run <file.cad>");
+                ExitCode::FAILURE
+            }
+        },
+        "watch" => match args.get(1) {
+            Some(path) => watch_file(path),
+            None => {
+                eprintln!("usage: cad watch <file.cad>");
                 ExitCode::FAILURE
             }
         },
@@ -83,6 +91,7 @@ fn run_file(path: &str) -> ExitCode {
         }
     };
     let mut it = Interpreter::new();
+    it.load_config();
     match it.exec_script(&text) {
         Ok(out) => {
             print!("{out}");
@@ -92,6 +101,35 @@ fn run_file(path: &str) -> ExitCode {
             eprintln!("error: {e}");
             ExitCode::FAILURE
         }
+    }
+}
+
+/// Re-run a script and print its output whenever the file changes on disk.
+fn watch_file(path: &str) -> ExitCode {
+    use std::io::Write;
+    use std::time::{Duration, SystemTime};
+
+    eprintln!("watching {path} (Ctrl-C to stop)…");
+    let mut last: Option<SystemTime> = None;
+    loop {
+        let modified = std::fs::metadata(path).and_then(|m| m.modified()).ok();
+        if modified != last {
+            last = modified;
+            print!("\x1b[2J\x1b[H"); // clear screen, home cursor
+            match std::fs::read_to_string(path) {
+                Ok(text) => {
+                    let mut it = Interpreter::new();
+                    it.load_config();
+                    match it.exec_script(&text) {
+                        Ok(out) => print!("{out}"),
+                        Err(e) => println!("error: {e}"),
+                    }
+                }
+                Err(e) => println!("cannot read {path}: {e}"),
+            }
+            let _ = std::io::stdout().flush();
+        }
+        std::thread::sleep(Duration::from_millis(300));
     }
 }
 

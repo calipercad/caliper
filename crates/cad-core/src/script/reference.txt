@@ -86,8 +86,8 @@ RENDER (ASCII/braille preview)
 EXPORT
   export svg   <path> [name=]     Cricut / Silhouette / laser / vinyl (mm)
   export dxf   <path> [name=]     AutoCAD / LibreCAD / Fusion
-  export gcode <path> [name=]     pen plotter / drag knife / CNC contour
-  export stl   <path> [name=]     3D printing / slicers
+  export gcode <path> [name=]     pen plotter / drag knife / CNC (G2/G3 arcs)
+  export stl   <path> [name=] [binary]   3D printing / slicers (ASCII or binary)
   export obj   <path> [name=]     3D mesh interchange
   (omit name= to export every matching entity — good for laser layouts)
   SVG/DXF group entities onto layers (by layer=, else role=) and color each
@@ -96,6 +96,10 @@ EXPORT
 FILES & AI
   save <file.cad>        write the command history as a reproducible script
   load <file.cad>        run a script file
+  import <file>          read an SVG / DXF / STL file into the scene
+  undo                   revert the last scene change
+  redo                   reapply an undone change
+  (CLI: `cad watch <file.cad>` re-renders on save; ~/.cad-assist/config.cad runs at startup)
   ai <describe it>       Claude copilot: generate → run → inspect → repair loop
   ai edit "<change>"     refine the current scene
   ai fix                 repair the previous AI attempt

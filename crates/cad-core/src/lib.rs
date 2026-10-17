@@ -27,6 +27,7 @@ pub mod error;
 pub mod export;
 pub mod geom2d;
 pub mod geom3d;
+pub mod import;
 pub mod math;
 pub mod render;
 pub mod scene;

@@ -48,7 +48,8 @@ cad-assist/                 workspace root (no package)
 │   │       ├── args.rs         positional/option arg parsing
 │   │       ├── skills/         Skill trait + registry + 20 built-ins
 │   │       │                     (gear/honeycomb/…, mechanical/maker/craft)
-│   │       ├── export/         svg, dxf, stl, obj, gcode writers
+│   │       ├── export/         svg, dxf, stl (ascii+binary), obj, gcode writers
+│   │       ├── import/          svg, dxf, stl readers (round-trip own output)
 │   │       ├── render/         Braille/half-block canvases, wire/HLR/shade, views
 │   │       ├── ai/             copilot: Transport trait + curl/jq + agent loop
 │   │       ├── script/         tokenizer, Interpreter, reference.txt
@@ -145,10 +146,12 @@ so a saved script has exactly one, correct unit declaration.
   work).
 - **Dimensioning is bbox-only.** `dim` annotates a shape's overall width/height;
   per-feature dimensions, tolerances, and 3D dims are future work.
-- **Exporter gaps remain**: no G2/G3 arc output in G-code, ASCII STL only (no
-  binary/3MF/PDF). DXF `CIRCLE`/`ARC` and SVG `<circle>` now round-trip. →
-  Phase 7.
-- **No import / undo / watch** and the exporter gaps above. → Phase 7.
+- **Remaining interop/UX gaps** (deferred to keep the kernel zero-dependency):
+  REPL tab-completion (needs raw-terminal/line-editor crates), and 3MF/PDF
+  export (3MF is a ZIP container). Import (svg/dxf/stl), undo/redo, `watch`,
+  binary STL, and G2/G3 G-code shipped in Phase 7.
+- **Not yet extensible by third parties**: no plugin host; correctness infra
+  (fuzz, property tests) and release packaging. → Phase 8 (v1.0).
 
 ## Testing
 

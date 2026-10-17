@@ -158,9 +158,27 @@ fn collect_meshes<'a>(scene: &'a Scene, target: Option<&str>) -> Result<Vec<(&'a
 }
 
 /// Export `scene` to `path` in `format`. `target` restricts to one entity.
-pub fn export(scene: &Scene, format: &str, path: &str, target: Option<&str>) -> Result<String> {
+/// `binary` selects binary STL (ignored by other formats).
+pub fn export(
+    scene: &Scene,
+    format: &str,
+    path: &str,
+    target: Option<&str>,
+    binary: bool,
+) -> Result<String> {
     let format = format.to_lowercase();
     let mm = scene.units.to_mm();
+    // Binary STL is bytes, not text — write it directly.
+    if format == "stl" && binary {
+        let meshes = collect_meshes(scene, target)?;
+        let bytes = stl::to_binary_stl(&meshes, mm);
+        fs::write(path, bytes)?;
+        let n = meshes.len();
+        return Ok(format!(
+            "wrote {n} entit{} to {path} (stl binary)",
+            if n == 1 { "y" } else { "ies" }
+        ));
+    }
     let text = if is_3d(&format) {
         let meshes = collect_meshes(scene, target)?;
         match format.as_str() {

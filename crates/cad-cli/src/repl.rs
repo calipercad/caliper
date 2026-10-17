@@ -14,6 +14,7 @@ const BANNER: &str = "\
 pub fn run() -> ExitCode {
     println!("{BANNER}");
     let mut it = Interpreter::new();
+    it.load_config();
     let stdin = io::stdin();
     let mut stdout = io::stdout();
 

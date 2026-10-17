@@ -53,7 +53,14 @@ pub struct Interpreter {
     /// Context of the last AI copilot run that did not converge: `(request,
     /// note)`, consumed by `ai fix`.
     pub last_ai: Option<(String, String)>,
+    /// Undo/redo snapshots of `(scene, history)` taken before each
+    /// scene-modifying command.
+    undo_stack: Vec<(Scene, Vec<String>)>,
+    redo_stack: Vec<(Scene, Vec<String>)>,
 }
+
+/// Maximum undo depth kept in memory.
+const MAX_UNDO: usize = 100;
 
 impl Interpreter {
     pub fn new() -> Self {
@@ -63,7 +70,20 @@ impl Interpreter {
             user_skill_dir: default_skill_dir(),
             history: Vec::new(),
             last_ai: None,
+            undo_stack: Vec::new(),
+            redo_stack: Vec::new(),
         }
+    }
+
+    /// Run `~/.cad-assist/config.cad` if present (units, defaults). Best-effort;
+    /// errors are ignored and the config is not left on the undo stack.
+    pub fn load_config(&mut self) -> Option<String> {
+        let path = default_config_path()?;
+        let text = std::fs::read_to_string(&path).ok()?;
+        let out = self.exec_script(&text).ok();
+        self.undo_stack.clear();
+        self.redo_stack.clear();
+        out
     }
 
     /// Execute a whole script, returning any accumulated display output.
@@ -94,6 +114,13 @@ impl Interpreter {
         let cmd = tokens[0].as_str();
         let rest = &tokens[1..];
         let args = Args::from_tokens(rest);
+
+        // Snapshot state before a scene-modifying command, for undo.
+        let snap = if is_modifying(cmd) {
+            Some((self.scene.clone(), self.history.clone()))
+        } else {
+            None
+        };
 
         let result = match cmd {
             // ---- 2D primitives ----
@@ -141,10 +168,13 @@ impl Interpreter {
                 self.scene.clear();
                 Ok("scene cleared".into())
             }
+            "import" => self.op_import(&args),
             "list" => return Ok(self.list()),
             "bbox" => return Ok(self.bbox(&args)),
             "skills" => return Ok(self.list_skills()),
             "help" => return Ok(LANGUAGE_REFERENCE.to_string()),
+            "undo" => return self.op_undo(),
+            "redo" => return self.op_redo(),
             // ---- io / render (not recorded in history) ----
             "render" => return self.render(&args),
             "export" => return self.export(&args),
@@ -154,11 +184,49 @@ impl Interpreter {
             other => Err(CadError::Parse(format!("unknown command '{other}'"))),
         };
 
-        // Record scene-modifying commands for reproducible `save`.
+        // Record scene-modifying commands for reproducible `save`, and keep an
+        // undo snapshot of the state from before the command.
         if result.is_ok() {
+            if let Some(s) = snap {
+                self.undo_stack.push(s);
+                if self.undo_stack.len() > MAX_UNDO {
+                    self.undo_stack.remove(0);
+                }
+                self.redo_stack.clear();
+            }
             self.history.push(raw.trim().to_string());
         }
         result
+    }
+
+    /// `undo` — restore the scene + history to before the last command.
+    fn op_undo(&mut self) -> Result<String> {
+        match self.undo_stack.pop() {
+            Some((scene, history)) => {
+                self.redo_stack.push((
+                    std::mem::replace(&mut self.scene, scene),
+                    std::mem::take(&mut self.history),
+                ));
+                self.history = history;
+                Ok("undid last change".into())
+            }
+            None => Err(CadError::Arg("nothing to undo".into())),
+        }
+    }
+
+    /// `redo` — reapply the change most recently undone.
+    fn op_redo(&mut self) -> Result<String> {
+        match self.redo_stack.pop() {
+            Some((scene, history)) => {
+                self.undo_stack.push((
+                    std::mem::replace(&mut self.scene, scene),
+                    std::mem::take(&mut self.history),
+                ));
+                self.history = history;
+                Ok("redid change".into())
+            }
+            None => Err(CadError::Arg("nothing to redo".into())),
+        }
     }
 
     // ---- 2D creators -------------------------------------------------------
@@ -1205,7 +1273,8 @@ impl Interpreter {
             .ok_or_else(|| CadError::Arg("export needs an output path".into()))?
             .to_string();
         let target = args.get_str("name");
-        export::export(&self.scene, &format, &path, target)
+        let binary = args.flag("binary");
+        export::export(&self.scene, &format, &path, target, binary)
     }
 
     fn load(&mut self, args: &Args) -> Result<String> {
@@ -1215,6 +1284,15 @@ impl Interpreter {
         let text = std::fs::read_to_string(path)?;
         let out = self.exec_script(&text)?;
         Ok(format!("loaded {path}\n{out}"))
+    }
+
+    /// `import <file.svg|dxf|stl>` — read an external/exported file into the scene.
+    fn op_import(&mut self, args: &Args) -> Result<String> {
+        let path = args
+            .pos_str(0)
+            .ok_or_else(|| CadError::Arg("usage: import <file.svg|dxf|stl>".into()))?
+            .to_string();
+        crate::import::import(&mut self.scene, &path)
     }
 
     fn save(&mut self, args: &Args) -> Result<String> {
@@ -1310,4 +1388,54 @@ fn substitute(template: &str, args: &Args) -> Result<String> {
 fn default_skill_dir() -> Option<PathBuf> {
     let home = std::env::var_os("HOME")?;
     Some(PathBuf::from(home).join(".cad-assist").join("skills"))
+}
+
+/// `~/.cad-assist/config.cad` — optional startup script (units, defaults).
+fn default_config_path() -> Option<PathBuf> {
+    let home = std::env::var_os("HOME")?;
+    Some(PathBuf::from(home).join(".cad-assist").join("config.cad"))
+}
+
+/// Whether a command mutates the scene (and is therefore recorded to history
+/// and snapshotted for undo). These are exactly the non-early-return arms of the
+/// `exec_line` dispatch.
+fn is_modifying(cmd: &str) -> bool {
+    matches!(
+        cmd,
+        "rect"
+            | "circle"
+            | "polygon"
+            | "star"
+            | "arc"
+            | "path"
+            | "text"
+            | "box"
+            | "cylinder"
+            | "sphere"
+            | "cone"
+            | "extrude"
+            | "revolve"
+            | "translate"
+            | "rotate"
+            | "scale"
+            | "array"
+            | "mirror"
+            | "group"
+            | "ungroup"
+            | "dim"
+            | "union"
+            | "subtract"
+            | "intersect"
+            | "xor"
+            | "fillet"
+            | "chamfer"
+            | "shell"
+            | "layer"
+            | "role"
+            | "units"
+            | "select"
+            | "delete"
+            | "clear"
+            | "import"
+    )
 }

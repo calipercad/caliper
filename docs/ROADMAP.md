@@ -26,8 +26,8 @@ foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
 | 4 | v0.5 | Drafting & rendering (HLR, shading, views, arrays, dims) | ✅ complete |
 | 5 | v0.6 | Library explosion (15+ maker/craftsman skills) | ✅ complete |
 | 6 | v0.7 | AI copilot (inspect-iterate-repair loop) | ✅ complete |
-| 7 | v0.8 | Interop & UX (import, undo, watch, richer export) | ⬜ next |
-| 8 | v1.0 | Extensibility & release (plugins, fuzz, CI, packaging) | ⬜ |
+| 7 | v0.8 | Interop & UX (import, undo, watch, richer export) | ✅ complete |
+| 8 | v1.0 | Extensibility & release (plugins, fuzz, CI, packaging) | ⬜ next |
 
 ---
 
@@ -307,11 +307,14 @@ testable offline via a transport trait so CI never hits the network.
   arc output in G-code for smoother CNC/plot paths.
 
 **Work items.**
-- [ ] SVG/DXF/STL importers + `import` command.
-- [ ] `undo`/`redo`; command-history-backed state stack.
-- [ ] REPL completion; `watch` mode; config file loading.
-- [ ] Binary STL, 3MF, PDF export; G2/G3 arcs in G-code.
-- [ ] Tests: import→export round-trip fidelity; undo restores prior scene.
+- [x] SVG/DXF/STL (ASCII+binary) importers + `import` command (new `import/`).
+- [x] `undo`/`redo`: `(scene, history)` snapshot stack.
+- [x] `watch` mode (CLI, mtime poll) + `~/.cad-assist/config.cad` at startup.
+- [x] Binary STL export + G2/G3 arcs in G-code.
+- [~] REPL tab-completion, 3MF, PDF — **deferred** (real completion needs
+      raw-terminal/line-editor crates and 3MF a ZIP container, both at odds with
+      the std-only, zero-dependency principle; revisit if that rule is relaxed).
+- [x] Tests: import→export round-trips (svg/dxf/stl), undo restores, gcode arcs.
 
 **Checkpoint.** Import an SVG produced earlier, modify it, and re-export with no
 geometry loss; `undo` returns the scene to its previous state exactly. Demo:

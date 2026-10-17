@@ -2,7 +2,8 @@
 //! contour cutting. Traces each contour with the tool down, lifting between
 //! contours. Not a full CAM post — a clean, honest starting point.
 
-use crate::geom2d::Shape;
+use crate::geom2d::{ContourKind, Shape};
+use crate::math::{rad, Vec2};
 
 pub struct GcodeOptions {
     pub feed: f64,     // cutting feed rate (mm/min)
@@ -39,21 +40,48 @@ pub fn to_gcode(shapes: &[(&str, &Shape)], mm: f64, opt: &GcodeOptions) -> Strin
             if c.points.is_empty() {
                 continue;
             }
-            let first = c.points[0];
-            g.push_str(&format!(
-                "G0 X{:.3} Y{:.3} F{:.0}\n",
-                first.x * mm,
-                first.y * mm,
-                opt.travel
-            ));
-            g.push_str(&format!("G1 Z{:.3} F{:.0}\n", opt.z_down, opt.feed));
-            for p in c.points.iter().skip(1) {
-                g.push_str(&format!("G1 X{:.3} Y{:.3}\n", p.x * mm, p.y * mm));
+            // Known circles/arcs emit true G2/G3 arc moves (smoother than a
+            // polyline fan, and smaller files); everything else traces points.
+            match &c.kind {
+                ContourKind::Circle { c: ctr, r } => {
+                    let s = Vec2::new(ctr.x + r, ctr.y); // rim at angle 0
+                    plunge(&mut g, s, mm, opt);
+                    // Full circle (CW): end == start, I/J point to the centre.
+                    g.push_str(&format!(
+                        "G2 X{:.3} Y{:.3} I{:.3} J{:.3}\n",
+                        s.x * mm,
+                        s.y * mm,
+                        (ctr.x - s.x) * mm,
+                        (ctr.y - s.y) * mm,
+                    ));
+                    g.push_str(&format!("G0 Z{:.3}\n", opt.z_up));
+                }
+                ContourKind::Arc { c: ctr, r, a0, a1 } => {
+                    let s = *ctr + Vec2::from_angle(rad(*a0), *r);
+                    let e = *ctr + Vec2::from_angle(rad(*a1), *r);
+                    plunge(&mut g, s, mm, opt);
+                    let cmd = if a1 >= a0 { "G3" } else { "G2" }; // CCW vs CW
+                    g.push_str(&format!(
+                        "{cmd} X{:.3} Y{:.3} I{:.3} J{:.3}\n",
+                        e.x * mm,
+                        e.y * mm,
+                        (ctr.x - s.x) * mm,
+                        (ctr.y - s.y) * mm,
+                    ));
+                    g.push_str(&format!("G0 Z{:.3}\n", opt.z_up));
+                }
+                ContourKind::Polyline => {
+                    let first = c.points[0];
+                    plunge(&mut g, first, mm, opt);
+                    for p in c.points.iter().skip(1) {
+                        g.push_str(&format!("G1 X{:.3} Y{:.3}\n", p.x * mm, p.y * mm));
+                    }
+                    if c.closed {
+                        g.push_str(&format!("G1 X{:.3} Y{:.3}\n", first.x * mm, first.y * mm));
+                    }
+                    g.push_str(&format!("G0 Z{:.3}\n", opt.z_up));
+                }
             }
-            if c.closed {
-                g.push_str(&format!("G1 X{:.3} Y{:.3}\n", first.x * mm, first.y * mm));
-            }
-            g.push_str(&format!("G0 Z{:.3}\n", opt.z_up));
         }
     }
 
@@ -62,4 +90,15 @@ pub fn to_gcode(shapes: &[(&str, &Shape)], mm: f64, opt: &GcodeOptions) -> Strin
     }
     g.push_str("G0 X0 Y0\nM2 ; end\n");
     g
+}
+
+/// Rapid to `p` then plunge the tool to cutting depth.
+fn plunge(g: &mut String, p: Vec2, mm: f64, opt: &GcodeOptions) {
+    g.push_str(&format!(
+        "G0 X{:.3} Y{:.3} F{:.0}\n",
+        p.x * mm,
+        p.y * mm,
+        opt.travel
+    ));
+    g.push_str(&format!("G1 Z{:.3} F{:.0}\n", opt.z_down, opt.feed));
 }

@@ -3,6 +3,32 @@
 All notable changes to cad-assist are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## [0.8.0] — Interop & UX
+
+cad-assist can now read files back, undo, watch, and emit richer output —
+rounding out the "edit this existing cut file" workflow.
+
+### Added
+- **Import** (new `import` module, `import <file>` command): SVG (`<circle>`,
+  `<path M/L/Z>`), DXF (`CIRCLE`/`ARC`/`LWPOLYLINE`), and STL (ASCII + binary).
+  Round-trips cad-assist's own output — DXF is exact; SVG inverts the writer's
+  Y-flip via the viewBox; STL welds repeated vertices into a `Mesh`.
+- **undo / redo**: a `(scene, history)` snapshot stack taken before each
+  scene-modifying command (bounded depth); `undo`/`redo` commands.
+- **`cad watch <file.cad>`**: re-runs and re-renders the script whenever the
+  file is saved (mtime polling, pure std).
+- **Richer export**: binary STL (`export stl … binary`) and true `G2`/`G3` arc
+  moves in G-code for `Circle`/`Arc` contours (smoother tool-paths, smaller
+  files); arcs survive a DXF round-trip.
+- **Startup config**: `~/.cad-assist/config.cad` runs at launch (units/defaults).
+- **Tests**: `crates/cad-core/tests/phase7.rs` — SVG/DXF/STL (ascii+binary)
+  round-trips, binary-STL byte size, undo/redo, and G-code arcs.
+
+### Deferred (std-only principle)
+- REPL tab-completion (needs raw-terminal or a line-editor crate), 3MF (ZIP
+  container), and PDF export — out of scope while the kernel stays
+  zero-dependency.
+
 ## [0.7.0] — AI copilot
 
 `ai` is now an iterative inspect→run→repair copilot instead of a one-shot
@@ -203,6 +229,7 @@ First working release: a complete, tested vertical slice of the tool.
 - `path … closed` now treats `closed` as a flag rather than miscounting it as a
   coordinate; bare flags are recognised generally (`Args::flag`).
 
+[0.8.0]: #
 [0.7.0]: #
 [0.6.0]: #
 [0.5.0]: #
