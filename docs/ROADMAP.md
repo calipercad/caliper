@@ -25,8 +25,8 @@ foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
 | 3 | v0.4 | 3D CSG, fillets/chamfers, shell/offset | ✅ complete |
 | 4 | v0.5 | Drafting & rendering (HLR, shading, views, arrays, dims) | ✅ complete |
 | 5 | v0.6 | Library explosion (15+ maker/craftsman skills) | ✅ complete |
-| 6 | v0.7 | AI copilot (inspect-iterate-repair loop) | ⬜ next |
-| 7 | v0.8 | Interop & UX (import, undo, watch, richer export) | ⬜ |
+| 6 | v0.7 | AI copilot (inspect-iterate-repair loop) | ✅ complete |
+| 7 | v0.8 | Interop & UX (import, undo, watch, richer export) | ⬜ next |
 | 8 | v1.0 | Extensibility & release (plugins, fuzz, CI, packaging) | ⬜ |
 
 ---
@@ -271,12 +271,15 @@ inspect what it built, correct errors, and refine toward a described goal.
   last failed run; optional streaming of the model's commands as they arrive.
 
 **Work items.**
-- [ ] `ai/agent.rs`: multi-turn message array, tool schema, step budget.
-- [ ] Wire tools to `Interpreter` (run/render/inspect/errors).
-- [ ] `ai edit` / `ai fix`; keep single-shot `ai` as the fast path.
-- [ ] Retrieval of skill usages into the system prompt.
-- [ ] Tests: loop harness with a mocked transport (no network) verifying
-      generate→error→repair→success and step-budget termination.
+- [x] `ai/agent.rs`: multi-turn message array, conversational command protocol,
+      step budget, per-turn atomic rollback.
+- [x] `Transport` trait + `CurlTransport` + offline `MockTransport` (the seam);
+      loop drives the interpreter (`exec_line`/render/list) and feeds errors back.
+- [x] `ai` iterates by default + `ai edit "<change>"` + `ai fix` (one-shot is
+      early convergence on `DONE`).
+- [x] Skill usages (name+summary+usage) injected into the system prompt.
+- [x] Tests: `tests/phase6.rs` loop harness via `MockTransport` (no network) —
+      repair convergence, step-budget termination, one-shot, atomic rollback.
 
 **Checkpoint.** With a mocked transport, the copilot converges a task that
 requires one self-correction (a first attempt errors, second succeeds) and

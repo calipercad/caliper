@@ -50,7 +50,7 @@ cad-assist/                 workspace root (no package)
 │   │       │                     (gear/honeycomb/…, mechanical/maker/craft)
 │   │       ├── export/         svg, dxf, stl, obj, gcode writers
 │   │       ├── render/         Braille/half-block canvases, wire/HLR/shade, views
-│   │       ├── ai/             natural-language → script bridge (curl/jq)
+│   │       ├── ai/             copilot: Transport trait + curl/jq + agent loop
 │   │       ├── script/         tokenizer, Interpreter, reference.txt
 │   │       └── lib.rs          module wiring + tests
 │   └── cad-cli/            the `cad` binary (REPL, run, ai, new)
@@ -148,8 +148,7 @@ so a saved script has exactly one, correct unit declaration.
 - **Exporter gaps remain**: no G2/G3 arc output in G-code, ASCII STL only (no
   binary/3MF/PDF). DXF `CIRCLE`/`ARC` and SVG `<circle>` now round-trip. →
   Phase 7.
-- **AI is single-shot** (generate → run), with no inspect-and-iterate loop. →
-  Phase 6.
+- **No import / undo / watch** and the exporter gaps above. → Phase 7.
 
 ## Testing
 

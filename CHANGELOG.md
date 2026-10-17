@@ -3,6 +3,29 @@
 All notable changes to cad-assist are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## [0.7.0] — AI copilot
+
+`ai` is now an iterative inspect→run→repair copilot instead of a one-shot
+generate-and-run, and the whole loop is testable offline.
+
+### Added
+- **Transport seam** (`ai::Transport`): the Claude call is behind a trait, with
+  the real `CurlTransport` (curl/jq, now a multi-turn messages array) and a
+  public `MockTransport` that returns scripted replies and records what it saw —
+  so the copilot is driven fully offline in tests (no network, no API key).
+- **Copilot loop** (`ai::agent::run_agent`): each turn the model emits
+  cad-assist commands (or `DONE`); the loop runs them, and on an error **rolls
+  the turn back atomically** (scene + history) and feeds the exact error back for
+  a fix; on success it feeds back the entity list + render. Bounded by a step
+  budget; converges early on `DONE`. The system prompt now includes a live
+  skills digest so the model prefers parametric skills.
+- **Commands**: `ai <describe>` iterates by default; `ai edit "<change>"` refines
+  the current scene; `ai fix` repairs the previous attempt. Successful commands
+  land in `history`, so `save` replays an AI-built design.
+- **Tests**: `crates/cad-core/tests/phase6.rs` — offline `MockTransport` loop
+  harness: repair convergence (error → feedback → success), step-budget
+  termination, one-shot `DONE`, and atomic per-turn rollback.
+
 ## [0.6.0] — Library explosion (15 new skills)
 
 Fifteen new parametric skills — the payoff of the geometry stack built in
@@ -180,6 +203,7 @@ First working release: a complete, tested vertical slice of the tool.
 - `path … closed` now treats `closed` as a flag rather than miscounting it as a
   coordinate; bare flags are recognised generally (`Args::flag`).
 
+[0.7.0]: #
 [0.6.0]: #
 [0.5.0]: #
 [0.4.0]: #

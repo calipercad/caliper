@@ -96,7 +96,10 @@ EXPORT
 FILES & AI
   save <file.cad>        write the command history as a reproducible script
   load <file.cad>        run a script file
-  ai <describe it>       ask Claude to generate and run a design
+  ai <describe it>       Claude copilot: generate → run → inspect → repair loop
+  ai edit "<change>"     refine the current scene
+  ai fix                 repair the previous AI attempt
+  (needs ANTHROPIC_API_KEY; model via CAD_AI_MODEL; uses curl + jq)
 
 EXAMPLE
   units mm

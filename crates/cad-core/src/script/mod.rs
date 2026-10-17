@@ -50,6 +50,9 @@ pub struct Interpreter {
     pub user_skill_dir: Option<PathBuf>,
     /// Reproducible log of scene-modifying commands (for `save`).
     pub history: Vec<String>,
+    /// Context of the last AI copilot run that did not converge: `(request,
+    /// note)`, consumed by `ai fix`.
+    pub last_ai: Option<(String, String)>,
 }
 
 impl Interpreter {
@@ -59,6 +62,7 @@ impl Interpreter {
             skills: SkillRegistry::with_builtins(),
             user_skill_dir: default_skill_dir(),
             history: Vec::new(),
+            last_ai: None,
         }
     }
 
@@ -1235,21 +1239,37 @@ impl Interpreter {
     }
 
     fn ai(&mut self, raw: &str) -> Result<String> {
-        // Everything after the leading `ai` token is the prompt.
-        let prompt = raw.trim().strip_prefix("ai").unwrap_or("").trim();
-        let prompt = prompt.trim_matches('"').trim();
-        if prompt.is_empty() {
-            return Err(CadError::Arg("usage: ai <describe what to make>".into()));
+        use crate::ai::agent::{run_agent, AgentMode, DEFAULT_BUDGET};
+
+        // Parse the leading subcommand: `ai edit <change>`, `ai fix`, else `ai <request>`.
+        let rest = raw.trim().strip_prefix("ai").unwrap_or("").trim();
+        let (mode, task) = if let Some(c) = rest.strip_prefix("edit") {
+            (
+                AgentMode::Edit,
+                c.trim().trim_matches('"').trim().to_string(),
+            )
+        } else if rest == "fix" || rest.starts_with("fix ") {
+            (AgentMode::Fix, String::new())
+        } else {
+            (AgentMode::Create, rest.trim_matches('"').trim().to_string())
+        };
+        if matches!(mode, AgentMode::Create | AgentMode::Edit) && task.is_empty() {
+            return Err(CadError::Arg(
+                "usage: ai <describe what to make> | ai edit \"<change>\" | ai fix".into(),
+            ));
         }
-        let script = crate::ai::generate(prompt)?;
-        let mut out = String::from("── AI generated script ──\n");
-        for line in script.lines() {
-            out.push_str(&format!("  {line}\n"));
-        }
-        out.push_str("─────────────────────────\n");
-        let run_out = self.exec_script(&script)?;
-        out.push_str(&run_out);
-        Ok(out)
+
+        let tx = crate::ai::CurlTransport;
+        let report = run_agent(&tx, self, &task, mode, DEFAULT_BUDGET)?;
+        let status = if report.converged {
+            format!("✓ converged in {} step(s)", report.steps)
+        } else {
+            format!(
+                "⚠ stopped after {} step(s) without DONE (try `ai fix`)",
+                report.steps
+            )
+        };
+        Ok(format!("{}\n{status}\n", report.transcript))
     }
 }
 
