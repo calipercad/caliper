@@ -1,5 +1,7 @@
 //! 3D geometry: triangle meshes, solid primitives and extrusion.
 
+pub mod csg;
+
 use crate::bbox::Aabb3;
 use crate::error::{CadError, Result};
 use crate::geom2d::Shape;

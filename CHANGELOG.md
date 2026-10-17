@@ -3,6 +3,30 @@
 All notable changes to cad-assist are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## [0.4.0] — 3D CSG, shell, rounded edges
+
+True solid modeling: boolean operations on meshes, so `box − cylinder` yields a
+real bored solid.
+
+### Added
+- **Mesh CSG** (`geom3d::csg`): `union` / `difference` / `intersection` via a
+  BSP-tree kernel (csg.js approach), followed by a **T-junction healing pass**
+  that subdivides edges at stray vertices so the output is a strict closed
+  2-manifold (not just watertight-for-rendering). Inputs are validated as closed
+  manifolds; non-manifold input returns a clean error instead of junk.
+- **`union`/`subtract`/`intersect` auto-dispatch by operand kind**: two 2D
+  shapes run the exact-integer polygon clipper (unchanged); two 3D meshes run the
+  CSG kernel; mixing a shape and a mesh errors. `xor` stays 2D-only.
+- **`shell <t>`** — hollow a solid to wall thickness `t`, by eroding each face
+  plane inward and subtracting (exact for convex / prismatic solids: box,
+  cylinder, cone, convex extrusions; conservative error otherwise).
+- **Rounded 3D edges via the profile workflow**: `fillet` / `chamfer` the 2D
+  profile, then `extrude` → rounded/beveled vertical edges (no new kernel code).
+- `Vec3::lerp` and `Vec3::len_sq` (parity with `Vec2`), used by the BSP splits.
+- **Tests**: `crates/cad-core/tests/phase3.rs` — the box−cylinder genus-1
+  checkpoint, union/intersection/disjoint volume + manifold, shell wall, command
+  auto-dispatch (2D vs 3D), non-manifold-input rejection, and rounded-extrude.
+
 ## [0.3.0] — Text & engraving + layered export
 
 Single-stroke text and layer/role semantics, so one exported file can drive a
@@ -109,6 +133,7 @@ First working release: a complete, tested vertical slice of the tool.
 - `path … closed` now treats `closed` as a flag rather than miscounting it as a
   coordinate; bare flags are recognised generally (`Args::flag`).
 
+[0.4.0]: #
 [0.3.0]: #
 [0.2.0]: #
 [0.1.0]: #

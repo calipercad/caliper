@@ -118,6 +118,7 @@ impl Interpreter {
             "xor" => self.op_bool(&args, BoolOp::Xor),
             "fillet" => self.op_fillet(&args),
             "chamfer" => self.op_chamfer(&args),
+            "shell" => self.op_shell(&args),
             // ---- layer / role attributes (recorded → round-trip through save) ----
             "layer" => self.op_layer(&args),
             "role" => self.op_role(&args),
@@ -428,27 +429,46 @@ impl Interpreter {
         }
     }
 
-    /// `union|subtract|intersect|xor <a> <b> [name=]` — combine two 2D shapes
-    /// into a NEW shape. Operands are left untouched (non-destructive).
+    /// Clone out the [`Mesh`] geometry of a named entity (the 3D counterpart of
+    /// [`Self::clone_shape`]).
+    fn clone_mesh(&self, name: &str) -> Result<Mesh> {
+        let entity = self
+            .scene
+            .get(name)
+            .ok_or_else(|| CadError::Arg("boolean needs two 3D meshes".into()))?;
+        match &entity.geom {
+            Geometry::Mesh(m) => Ok(m.clone()),
+            Geometry::Shape(_) => Err(CadError::Arg("boolean needs two 3D meshes".into())),
+        }
+    }
+
+    /// `union|subtract|intersect|xor <a> <b> [name=]` — combine two operands into
+    /// a NEW entity, dispatching by kind: two 2D shapes run the exact-integer
+    /// polygon clipper, two 3D meshes run BSP CSG (`xor` is 2D-only). Operands
+    /// are left untouched (non-destructive).
     fn op_bool(&mut self, args: &Args, op: BoolOp) -> Result<String> {
         let a_name = args
             .pos_str(0)
-            .ok_or_else(|| CadError::Arg("boolean needs two 2D shapes".into()))?
+            .ok_or_else(|| CadError::Arg("boolean needs two operands".into()))?
             .to_string();
         let b_name = args
             .pos_str(1)
-            .ok_or_else(|| CadError::Arg("boolean needs two 2D shapes".into()))?
+            .ok_or_else(|| CadError::Arg("boolean needs two operands".into()))?
             .to_string();
 
-        // Resolve both operands as shape geometry, cloning them out first so the
-        // immutable borrow of the scene ends before we add the result entity.
-        let a_shape = self.clone_shape(&a_name)?;
-        let b_shape = self.clone_shape(&b_name)?;
-
-        let result = boolean(&a_shape, &b_shape, op)?;
-        if result.is_empty() {
-            return Err(CadError::Geometry("empty result".into()));
-        }
+        // Dispatch on operand kinds (borrows end before we mutate the scene).
+        let ka = self
+            .scene
+            .get(&a_name)
+            .ok_or_else(|| CadError::NotFound(a_name.clone()))?
+            .geom
+            .kind();
+        let kb = self
+            .scene
+            .get(&b_name)
+            .ok_or_else(|| CadError::NotFound(b_name.clone()))?
+            .geom
+            .kind();
 
         let name = args.name().unwrap_or_else(|| {
             if op == BoolOp::Difference {
@@ -457,7 +477,39 @@ impl Interpreter {
                 self.scene.auto_name("bool")
             }
         });
-        self.scene.add(name.clone(), Geometry::Shape(result));
+
+        match (ka, kb) {
+            ("2d", "2d") => {
+                let a_shape = self.clone_shape(&a_name)?;
+                let b_shape = self.clone_shape(&b_name)?;
+                let result = boolean(&a_shape, &b_shape, op)?;
+                if result.is_empty() {
+                    return Err(CadError::Geometry("empty result".into()));
+                }
+                self.scene.add(name.clone(), Geometry::Shape(result));
+            }
+            ("3d", "3d") => {
+                let a_mesh = self.clone_mesh(&a_name)?;
+                let b_mesh = self.clone_mesh(&b_name)?;
+                let result = match op {
+                    BoolOp::Union => geom3d::csg::union(&a_mesh, &b_mesh)?,
+                    BoolOp::Difference => geom3d::csg::difference(&a_mesh, &b_mesh)?,
+                    BoolOp::Intersection => geom3d::csg::intersection(&a_mesh, &b_mesh)?,
+                    BoolOp::Xor => {
+                        return Err(CadError::Arg("xor is only defined for 2D shapes".into()))
+                    }
+                };
+                if result.tris.is_empty() {
+                    return Err(CadError::Geometry("empty result".into()));
+                }
+                self.scene.add(name.clone(), Geometry::Mesh(result));
+            }
+            _ => {
+                return Err(CadError::Arg(
+                    "cannot combine a 2D shape with a 3D mesh".into(),
+                ))
+            }
+        }
 
         let verb = match op {
             BoolOp::Union => "union",
@@ -491,6 +543,20 @@ impl Interpreter {
             Geometry::Mesh(_) => return Err(CadError::Arg("chamfer needs a 2D shape".into())),
         }
         Ok(format!("chamfered '{name}' (d{d})"))
+    }
+
+    /// `shell <t> [target=]` — hollow a solid mesh to wall thickness `t`
+    /// (convex/prismatic solids). Replaces the target mesh in place.
+    fn op_shell(&mut self, args: &Args) -> Result<String> {
+        let t = args.pos_f64(0)?;
+        let target = args.get_str("target").map(|s| s.to_string());
+        let e = self.scene.resolve_mut(target.as_deref())?;
+        let name = e.name.clone();
+        match &mut e.geom {
+            Geometry::Mesh(m) => *m = geom3d::csg::shell(m, t)?,
+            Geometry::Shape(_) => return Err(CadError::Arg("shell needs a 3D mesh".into())),
+        }
+        Ok(format!("shelled '{name}' (t{t})"))
     }
 
     /// `layer <name> [target=]` — set the export layer of an entity (defaults to

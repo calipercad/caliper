@@ -28,14 +28,16 @@ OPERATIONS (default target = current selection; override with target=<id>)
   translate <x> <y> [z] [target=]                  move
   rotate <deg> [axis=x|y|z] [about=center|origin] [target=]
   scale <factor> [about=center|origin] [target=]
-  union <a> <b> [name=]                            a ∪ b  (2 shapes -> new shape)
-  subtract <a> <b> [name=]                         a − b
-  intersect <a> <b> [name=]                        a ∩ b
-  xor <a> <b> [name=]                              a ⊕ b
-  fillet <r> [seg=16] [target=]                    round contour corners
-  chamfer <d> [target=]                            bevel contour corners
+  union <a> <b> [name=]                            a ∪ b  (2 shapes OR 2 meshes -> new)
+  subtract <a> <b> [name=]                         a − b  (2D or 3D, by operand kind)
+  intersect <a> <b> [name=]                        a ∩ b  (2D or 3D)
+  xor <a> <b> [name=]                              a ⊕ b  (2D shapes only)
+  fillet <r> [seg=16] [target=]                    round contour corners (2D)
+  chamfer <d> [target=]                            bevel contour corners (2D)
+  shell <t> [target=]                              hollow a solid to wall t (convex/prism)
   layer <name> [target=]                           set an entity's export layer
   role <name> [target=]                            set cut|score|engrave (layer color)
+  (rounded/beveled 3D edges: fillet/chamfer the 2D profile, then extrude)
 
 SKILLS (parametric generators — run `skills` to list)
   skill gear teeth=<n> module=<mm> [pressure=20] [bore=<mm>] [thickness=<mm>]

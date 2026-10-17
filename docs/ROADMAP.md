@@ -22,8 +22,8 @@ foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
 | 0 | v0.1 | Foundation | ✅ complete |
 | 1 | v0.2 | Robust 2D geometry (booleans, fillets, real holes) | ✅ complete |
 | 2 | v0.3 | Text & engraving + layered cut/score/engrave export | ✅ complete |
-| 3 | v0.4 | 3D CSG, fillets/chamfers, shell/offset | ⬜ next |
-| 4 | v0.5 | Drafting & rendering (HLR, shading, views, arrays, dims) | ⬜ |
+| 3 | v0.4 | 3D CSG, fillets/chamfers, shell/offset | ✅ complete |
+| 4 | v0.5 | Drafting & rendering (HLR, shading, views, arrays, dims) | ⬜ next |
 | 5 | v0.6 | Library explosion (15+ maker/craftsman skills) | ⬜ |
 | 6 | v0.7 | AI copilot (inspect-iterate-repair loop) | ⬜ |
 | 7 | v0.8 | Interop & UX (import, undo, watch, richer export) | ⬜ |
@@ -152,11 +152,14 @@ edges, and hollow parts.
   subtract) — critical for enclosures and print weight.
 
 **Work items.**
-- [ ] `geom3d/csg.rs`: BSP build, clip, invert, `union`/`difference`/`intersection`.
-- [ ] Language: 3D `union`/`subtract`/`intersect` (dispatch by geometry kind).
-- [ ] `shell <t>` on meshes; `fillet3`/`chamfer3` on extrude edges.
-- [ ] Manifold/normal-consistency validator used by tests.
-- [ ] Tests: cube−sphere volume/manifold, union tri-count sanity, shell wall.
+- [x] `geom3d/csg.rs`: BSP build, clip, invert, `union`/`difference`/`intersection`
+      (plus a T-junction healing pass so output is a strict closed 2-manifold).
+- [x] Language: `union`/`subtract`/`intersect` auto-dispatch by geometry kind.
+- [x] `shell <t>` on meshes (convex/prismatic-limited). 3D edge rounding is the
+      profile workflow: `fillet`/`chamfer` the 2D profile, then `extrude`.
+- [x] Manifold / signed-volume validators used by tests (from Phase 1).
+- [x] Tests: box−cylinder genus/volume, union & intersection volume, disjoint
+      union, shell wall, command auto-dispatch, rounded-extrude.
 
 **Checkpoint.** `box − cylinder` yields a solid with a real bored hole, exported
 STL passes the manifold validator. Demo:

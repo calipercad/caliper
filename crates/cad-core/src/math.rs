@@ -168,6 +168,11 @@ impl Vec3 {
     }
 
     #[inline]
+    pub fn len_sq(self) -> f64 {
+        self.dot(self)
+    }
+
+    #[inline]
     pub fn normalized(self) -> Vec3 {
         let l = self.len();
         if l < EPS {
@@ -175,6 +180,12 @@ impl Vec3 {
         } else {
             self / l
         }
+    }
+
+    /// Linear interpolation toward `o` by parameter `t` in `[0, 1]`.
+    #[inline]
+    pub fn lerp(self, o: Vec3, t: f64) -> Vec3 {
+        self + (o - self) * t
     }
 
     #[inline]

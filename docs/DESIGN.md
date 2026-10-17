@@ -42,6 +42,8 @@ cad-assist/                 workspace root (no package)
 │   │       │   ├── boolean.rs  exact-integer union/difference/intersection/xor
 │   │       │   └── text/       single-stroke font + stroke_text layout
 │   │       ├── geom3d.rs       Mesh + primitives, holed extrude, revolve, triangulate
+│   │       ├── geom3d/
+│   │       │   └── csg.rs      BSP mesh booleans + shell (3D CSG)
 │   │       ├── scene.rs        Units, Geometry, Entity, Scene
 │   │       ├── args.rs         positional/option arg parsing
 │   │       ├── skills/         Skill trait + registry + built-ins
@@ -89,6 +91,13 @@ cad-assist/                 workspace root (no package)
   via keyhole bridging over `regions()`, welded to one shared vertex ring),
   `revolve`, `triangulate_with_holes`, `triangulate` (ear-clipping with a fan
   fallback).
+- **`geom3d::csg`** — 3D constructive solid geometry. `union`/`difference`/
+  `intersection` on closed-manifold meshes via a BSP-tree kernel (csg.js
+  approach), then a T-junction healing pass (subdivide edges at stray vertices)
+  so the output is a strict closed 2-manifold. `shell(mesh, t)` hollows a solid
+  by eroding each face plane inward and subtracting (convex/prismatic-exact).
+  Non-manifold input returns a clean error. The `union`/`subtract`/`intersect`
+  commands dispatch here for meshes and to `geom2d::boolean` for shapes.
 - **`Geometry` = `Shape | Mesh`**, wrapped in **`Entity { name, geom, layer,
   role }`**, held by **`Scene { entities, units, selected, auto_counter }`**.
   The scene tracks the current selection so most ops default to "the selected
@@ -126,11 +135,11 @@ so a saved script has exactly one, correct unit declaration.
 
 ## Known limitations (addressed by the roadmap)
 
-- **No 3D mesh CSG.** 2D polygon booleans exist (Phase 1), and holes now cut
-  through extruded caps, but subtracting/uniting arbitrary *meshes* (e.g.
-  `box − cylinder`) needs BSP CSG. → Roadmap Phase 3.
-- **No 3D edge fillets/chamfers, no shell/offset.** 2D contour fillet/chamfer
-  ships in Phase 1; rounding mesh edges and hollowing solids → Phase 3.
+- **3D edge rounding is profile-only.** Mesh CSG (`box − cylinder`) and `shell`
+  ship in Phase 3, but rounded edges come from filleting the 2D profile before
+  `extrude` — rounding an arbitrary existing mesh's edges is future work, and
+  `shell` is convex/prismatic-limited (a robust general inward offset is future
+  work).
 - **No dimensions.** Stroke text ships (Phase 2); dimensioned drawing sheets →
   Phase 4.
 - **Exporter gaps remain**: no G2/G3 arc output in G-code, ASCII STL only (no
