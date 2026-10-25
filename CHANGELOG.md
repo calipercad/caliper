@@ -3,6 +3,39 @@
 All notable changes to cad-assist are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## [1.2.0] — Geometry & assembly expansion
+
+Three post-1.0 phases in one release: a real 2D offset, measurement/analysis,
+and multi-part assemblies with a bill of materials. Still std-only and
+zero-dependency.
+
+### Phase 10 — 2D offset / inset
+- `offset <dist>` / `inset <dist>` grow (+) or shrink (−) a 2D profile:
+  `join=round|miter|bevel`, `seg=`, `miter=`, in place or (with a new `name=`)
+  as a separate entity (kerf / tool-path). The engine
+  (`geom2d::offset`, `Shape::offset`) offsets each contour and winding-classifies
+  the result, dropping features an over-large inset erodes away. Unlocks laser
+  kerf & CNC tool compensation, clearances, and gaskets.
+
+### Phase 11 — Measurement & analysis
+- `measure [target]` — mass properties: 2D area/perimeter/centroid/bbox; 3D
+  volume/surface-area/centroid/bbox + watertightness & genus.
+- `interfere [a b]` — clash detection for a pair, or an all-pairs scan with no
+  args (AABB broad-phase + exact 2D boolean / 3D CSG intersection).
+- `section <target> [axis=x|y|z] [at=] [name=]` — slice a mesh by an
+  axis-aligned plane into a new 2D outline (`geom3d::section`).
+- New library helpers: `Shape::{perimeter,centroid}`,
+  `Mesh::{surface_area,centroid}`, `Aabb2/Aabb3::intersects`.
+
+### Phase 12 — Assemblies & BOM
+- `part <label> [target=]` tags an entity or group with a part type
+  (`Entity.part`); `assembly <tag> <members…>` groups parts so they move/export
+  as one; `bom [group=]` reports quantities (by part label, or name with array
+  digits stripped) with per-part size and a total.
+- `export … group=<tag>` writes a whole assembly (just its members) to one file.
+- `list` now shows `part=`/`group=` tags; `part`/`assembly` round-trip through
+  `save`.
+
 ## [1.1.0] — Parametric expressions & variables
 
 The first post-1.0 feature: the script language becomes truly parametric. One

@@ -31,6 +31,9 @@ foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
 | 7 | v0.8 | Interop & UX (import, undo, watch, richer export) | ✅ complete |
 | 8 | v1.0 | Extensibility & release (plugins, fuzz, CI, packaging) | ✅ complete |
 | 9 | v1.1 | Parametric expressions & variables | ✅ complete |
+| 10 | v1.2 | Robust 2D offset / inset | ✅ complete |
+| 11 | v1.2 | Measurement & analysis | ✅ complete |
+| 12 | v1.2 | Assemblies & BOM | ✅ complete |
 
 ---
 
@@ -38,10 +41,9 @@ foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
 
 The eight-phase roadmap delivered a coherent v1.0. Growth continues as
 independent, checkpointed phases in the same spirit (std-only, text-first,
-every fix gets a test). Candidate follow-ups: robust 2D polygon offset/inset
-(kerf & tool compensation, outline text, general shell); measurement & analysis
-(mass properties, interference, cross-sections); assemblies & BOM. The first
-post-1.0 phase is **Phase 9**, below.
+every fix gets a test). Phases 9–12 are shipped, below; further candidates
+include outline/stencil text (TrueType `glyf`), true 3D edge rounding, and a
+relax-std-only polish phase (WASM/dylib plugin host, cargo-fuzz, PDF/3MF).
 
 ## Phase 9 — Parametric expressions & variables ✅ (v1.1)
 
@@ -65,6 +67,59 @@ part from it, with arithmetic wherever a number is accepted.
 **Checkpoint (met).** `set w 40 ; rect $w $w*2` builds a 40×80 plate; `save`
 emits the literal expressions; `undo` reverts a variable; `cargo test` green
 (`tests/phase9.rs` + `expr` unit tests), `fmt`/`clippy -D warnings` clean.
+
+---
+
+## Phase 10 — Robust 2D offset / inset ✅ (v1.2)
+
+**Objective.** Grow/shrink a 2D profile by a distance — kerf & tool-radius
+compensation, clearances, gaskets, and a correct inward offset.
+
+**Delivered.** `offset <dist>` / `inset <dist>` (`join=round|miter|bevel`,
+`seg=`, `miter=`), mutating in place or adding a new entity with `name=`. The
+engine (`geom2d::offset`, `Shape::offset`) offsets each contour along its edge
+normals, reconnects corners with the chosen join, winding-classifies the result,
+and drops any contour an over-large inset erodes away (per-edge reversal test) —
+so `inset` past a profile's own width yields an empty result (a clean error).
+
+**Checkpoint (met).** `rect 40 40 ; offset 5` → 50×50 rounded; `inset 6` on a
+10 mm square errors; a shape-with-hole offsets outer-out/hole-in; `cargo test`
+green (`tests/phase10.rs` + `offset` unit tests).
+
+---
+
+## Phase 11 — Measurement & analysis ✅ (v1.2)
+
+**Objective.** Query designs, not just draw them.
+
+**Delivered.** `measure [target]` (2D area/perimeter/centroid/bbox; 3D
+volume/surface-area/centroid/bbox + watertightness & genus); `interfere [a b]`
+(pair or all-pairs clash via AABB broad-phase + exact boolean/CSG intersection);
+`section <target> [axis=x|y|z] [at=] [name=]` (slice a mesh by an axis plane →
+a new 2D outline, `geom3d::section`). New helpers: `Shape::{perimeter,centroid}`,
+`Mesh::{surface_area,centroid}`, `Aabb2/Aabb3::intersects`.
+
+**Checkpoint (met).** `measure` of a bored box reports volume, surface, and
+genus 1; `section` at mid-height yields the right rectangle; overlapping vs
+disjoint `interfere` report correctly; `cargo test` green (`tests/phase11.rs`).
+
+---
+
+## Phase 12 — Assemblies & BOM ✅ (v1.2)
+
+**Objective.** Compose named parts into assemblies, place them, export as one,
+and generate a bill of materials.
+
+**Delivered.** `Entity.part` label via `part <label> [target=]`; `assembly
+<tag> <members…>` (groups parts so transforms move them as one, reusing the
+`group` machinery); `bom [group=]` (quantities by part label, or name with
+array digits stripped, with per-part size + total); `export … group=<tag>`
+writes a whole assembly. `list` shows `part=`/`group=`; both round-trip `save`.
+
+**Checkpoint (met).** A polar `array` of a bolt → `bom` shows `bolt ×6`; a
+labelled part collapses copies; a group translate moves the assembly;
+group-aware export writes only the members; `cargo test` green
+(`tests/phase12.rs`).
 
 ---
 

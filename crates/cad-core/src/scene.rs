@@ -77,6 +77,9 @@ pub struct Entity {
     /// Optional group tag. Entities sharing a tag move/transform together when
     /// a command targets the group name (see [`Scene::member_names`]).
     pub group: Option<String>,
+    /// Optional part-type label for the bill of materials. Entities sharing a
+    /// label are the same part; `bom` counts them. See [`Scene::set_part`].
+    pub part: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -116,6 +119,7 @@ impl Scene {
                 layer: None,
                 role: None,
                 group: None,
+                part: None,
             });
         }
         self.selected = Some(name.clone());
@@ -139,6 +143,19 @@ impl Scene {
             e.role = role;
         }
         Ok(e.name.clone())
+    }
+
+    /// Set the part-type label on an entity or a whole group (so arrayed copies
+    /// can be labelled at once), defaulting to the current selection. Returns the
+    /// number of entities tagged.
+    pub fn set_part(&mut self, target: Option<&str>, label: &str) -> Result<usize> {
+        let names = self.member_names(target)?;
+        for n in &names {
+            if let Some(e) = self.get_mut(n) {
+                e.part = Some(label.to_string());
+            }
+        }
+        Ok(names.len())
     }
 
     /// The entity names a transform should act on: if `target` names a group

@@ -1,0 +1,31 @@
+# bolt-flange-assembly.cad — a flange plate with a ring of bolts, composed as a
+# named assembly with a bill of materials. Shows arrays → BOM quantities, part
+# labels, and whole-assembly export.
+#
+#   cad run examples/bolt-flange-assembly.cad
+
+units mm
+
+set bolts 6
+set circle 36        # bolt-circle radius
+
+# the flange: a bored disc (drop the construction circles afterwards)
+circle 50 name=flange
+circle 18 name=center
+subtract flange center name=plate
+delete flange
+delete center
+part flange-plate target=plate
+
+# one bolt, arrayed around the bolt circle into a group
+circle 4 name=bolt
+translate $circle 0 target=bolt
+array $bolts kind=polar about=origin target=bolt name=ring
+part M8-bolt target=ring
+
+# bill of materials: 1 plate + N bolts
+bom
+
+render mode=2d
+# export the whole thing as one cut file
+export svg flange-assembly.svg

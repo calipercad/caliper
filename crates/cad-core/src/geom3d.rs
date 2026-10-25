@@ -1,6 +1,7 @@
 //! 3D geometry: triangle meshes, solid primitives and extrusion.
 
 pub mod csg;
+pub mod section;
 
 use crate::bbox::Aabb3;
 use crate::error::{CadError, Result};
@@ -319,6 +320,38 @@ impl Mesh {
             v += a.dot(b.cross(c));
         }
         v / 6.0
+    }
+
+    /// Total surface area — the sum of triangle areas.
+    pub fn surface_area(&self) -> f64 {
+        let mut s = 0.0;
+        for t in &self.tris {
+            let a = self.verts[t[0]];
+            let b = self.verts[t[1]];
+            let c = self.verts[t[2]];
+            s += (b - a).cross(c - a).len() * 0.5;
+        }
+        s
+    }
+
+    /// Volume centroid (center of mass of the enclosed solid), via signed
+    /// tetrahedra to the origin — the partner of [`Mesh::signed_volume`]. Falls
+    /// back to the bounding-box center for a degenerate (zero-volume) mesh.
+    pub fn centroid(&self) -> Vec3 {
+        let mut vol = 0.0;
+        let mut acc = Vec3::ZERO;
+        for t in &self.tris {
+            let a = self.verts[t[0]];
+            let b = self.verts[t[1]];
+            let c = self.verts[t[2]];
+            let v = a.dot(b.cross(c)); // 6× the signed tet volume
+            vol += v;
+            acc = acc + (a + b + c) * v; // tet centroid = (a+b+c+0)/4; the /4 cancels
+        }
+        if vol.abs() < EPS {
+            return self.bbox().center();
+        }
+        acc * (1.0 / (vol * 4.0))
     }
 }
 

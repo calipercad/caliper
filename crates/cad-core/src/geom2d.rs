@@ -13,6 +13,7 @@
 //! transform) resets the hint to [`ContourKind::Polyline`].
 
 pub mod boolean;
+pub mod offset;
 pub mod text;
 
 use crate::bbox::Aabb2;
@@ -277,6 +278,48 @@ impl Shape {
             }
         }
         a.max(0.0)
+    }
+
+    /// Total boundary length — the sum of every contour's perimeter (outer
+    /// boundaries plus holes), the cut length for a laser/plotter job.
+    pub fn perimeter(&self) -> f64 {
+        self.contours.iter().map(|c| c.length()).sum()
+    }
+
+    /// Area centroid (center of mass of the filled region). Holes subtract their
+    /// first moment, so a washer's centroid stays at its center. Falls back to
+    /// the bbox center for a degenerate (zero-area) shape.
+    pub fn centroid(&self) -> Vec2 {
+        let mut s = self.clone();
+        s.normalize_windings();
+        let mut area = 0.0;
+        let mut acc = Vec2::ZERO;
+        for c in &s.contours {
+            let pts = &c.points;
+            let n = pts.len();
+            if n < 3 {
+                continue;
+            }
+            // Signed shoelace area and first moment of this loop.
+            let mut a2 = 0.0; // 2× signed area
+            let mut cx = 0.0;
+            let mut cy = 0.0;
+            for k in 0..n {
+                let p = pts[k];
+                let q = pts[(k + 1) % n];
+                let cross = p.x * q.y - q.x * p.y;
+                a2 += cross;
+                cx += (p.x + q.x) * cross;
+                cy += (p.y + q.y) * cross;
+            }
+            // Signed so holes (CW, negative a2) subtract their moment.
+            area += a2 * 0.5;
+            acc = acc + Vec2::new(cx, cy) * (1.0 / 6.0);
+        }
+        if area.abs() < EPS {
+            return self.bbox().center();
+        }
+        acc * (1.0 / area)
     }
 
     /// Classify every contour by nesting-depth parity (even = solid, odd =

@@ -1,0 +1,23 @@
+# gasket.cad — a sealing gasket cut from a bored plate, grown by an offset so
+# the rim is a uniform width all the way around (including the bore). Shows the
+# 2D offset: one number sets the seal width.
+#
+#   cad run examples/gasket.cad
+
+units mm
+
+set width 4          # seal rim width
+
+# a 60×40 plate with a 30mm central bore
+rect 60 40 rx=6 name=plate
+circle 15 name=bore
+translate 30 20 target=bore
+subtract plate bore name=gasket
+
+# grow the whole profile outward by the rim width (outer grows, bore shrinks)
+offset $width target=gasket role=cut
+
+measure gasket
+render mode=2d
+export svg gasket.svg
+export dxf gasket.dxf

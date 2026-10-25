@@ -60,8 +60,19 @@ fn is_3d(format: &str) -> bool {
     matches!(format, "stl" | "obj")
 }
 
-/// Collect 2D shapes from the scene (a single named entity, or all 2D entities).
-fn collect_shapes<'a>(scene: &'a Scene, target: Option<&str>) -> Result<Vec<(&'a str, &'a Shape)>> {
+/// Whether an entity passes the optional `members` filter (a group/assembly's
+/// member names). `None` means no filter — include everything.
+fn in_members(members: Option<&[String]>, name: &str) -> bool {
+    members.is_none_or(|m| m.iter().any(|n| n == name))
+}
+
+/// Collect 2D shapes from the scene (a single named entity, else every 2D
+/// entity, optionally filtered to a group's `members`).
+fn collect_shapes<'a>(
+    scene: &'a Scene,
+    target: Option<&str>,
+    members: Option<&[String]>,
+) -> Result<Vec<(&'a str, &'a Shape)>> {
     let mut out = Vec::new();
     match target {
         Some(name) => {
@@ -78,7 +89,9 @@ fn collect_shapes<'a>(scene: &'a Scene, target: Option<&str>) -> Result<Vec<(&'a
         None => {
             for e in &scene.entities {
                 if let Geometry::Shape(s) = &e.geom {
-                    out.push((e.name.as_str(), s));
+                    if in_members(members, &e.name) {
+                        out.push((e.name.as_str(), s));
+                    }
                 }
             }
         }
@@ -90,7 +103,11 @@ fn collect_shapes<'a>(scene: &'a Scene, target: Option<&str>) -> Result<Vec<(&'a
 }
 
 /// Collect 2D entities with their layer/role for the layered exporters.
-fn collect_items<'a>(scene: &'a Scene, target: Option<&str>) -> Result<Vec<Item<'a>>> {
+fn collect_items<'a>(
+    scene: &'a Scene,
+    target: Option<&str>,
+    members: Option<&[String]>,
+) -> Result<Vec<Item<'a>>> {
     let push = |out: &mut Vec<Item<'a>>, e: &'a crate::scene::Entity| {
         if let Geometry::Shape(s) = &e.geom {
             out.push(Item {
@@ -116,7 +133,9 @@ fn collect_items<'a>(scene: &'a Scene, target: Option<&str>) -> Result<Vec<Item<
         }
         None => {
             for e in &scene.entities {
-                push(&mut out, e);
+                if in_members(members, &e.name) {
+                    push(&mut out, e);
+                }
             }
         }
     }
@@ -126,8 +145,13 @@ fn collect_items<'a>(scene: &'a Scene, target: Option<&str>) -> Result<Vec<Item<
     Ok(out)
 }
 
-/// Collect 3D meshes from the scene (a single named entity, or all meshes).
-fn collect_meshes<'a>(scene: &'a Scene, target: Option<&str>) -> Result<Vec<(&'a str, &'a Mesh)>> {
+/// Collect 3D meshes from the scene (a single named entity, else every mesh,
+/// optionally filtered to a group's `members`).
+fn collect_meshes<'a>(
+    scene: &'a Scene,
+    target: Option<&str>,
+    members: Option<&[String]>,
+) -> Result<Vec<(&'a str, &'a Mesh)>> {
     let mut out = Vec::new();
     match target {
         Some(name) => {
@@ -146,7 +170,9 @@ fn collect_meshes<'a>(scene: &'a Scene, target: Option<&str>) -> Result<Vec<(&'a
         None => {
             for e in &scene.entities {
                 if let Geometry::Mesh(m) = &e.geom {
-                    out.push((e.name.as_str(), m));
+                    if in_members(members, &e.name) {
+                        out.push((e.name.as_str(), m));
+                    }
                 }
             }
         }
@@ -157,20 +183,22 @@ fn collect_meshes<'a>(scene: &'a Scene, target: Option<&str>) -> Result<Vec<(&'a
     Ok(out)
 }
 
-/// Export `scene` to `path` in `format`. `target` restricts to one entity.
-/// `binary` selects binary STL (ignored by other formats).
+/// Export `scene` to `path` in `format`. `target` restricts to one entity;
+/// `members` (a group/assembly's names) restricts to a subset. `binary` selects
+/// binary STL (ignored by other formats).
 pub fn export(
     scene: &Scene,
     format: &str,
     path: &str,
     target: Option<&str>,
+    members: Option<&[String]>,
     binary: bool,
 ) -> Result<String> {
     let format = format.to_lowercase();
     let mm = scene.units.to_mm();
     // Binary STL is bytes, not text — write it directly.
     if format == "stl" && binary {
-        let meshes = collect_meshes(scene, target)?;
+        let meshes = collect_meshes(scene, target, members)?;
         let bytes = stl::to_binary_stl(&meshes, mm);
         fs::write(path, bytes)?;
         let n = meshes.len();
@@ -180,7 +208,7 @@ pub fn export(
         ));
     }
     let text = if is_3d(&format) {
-        let meshes = collect_meshes(scene, target)?;
+        let meshes = collect_meshes(scene, target, members)?;
         match format.as_str() {
             "stl" => stl::to_ascii_stl(&meshes, mm),
             "obj" => obj::to_obj(&meshes, mm),
@@ -188,10 +216,10 @@ pub fn export(
         }
     } else {
         match format.as_str() {
-            "svg" => svg::to_svg(&collect_items(scene, target)?, mm),
-            "dxf" => dxf::to_dxf(&collect_items(scene, target)?, mm),
+            "svg" => svg::to_svg(&collect_items(scene, target, members)?, mm),
+            "dxf" => dxf::to_dxf(&collect_items(scene, target, members)?, mm),
             "gcode" => gcode::to_gcode(
-                &collect_shapes(scene, target)?,
+                &collect_shapes(scene, target, members)?,
                 mm,
                 &gcode::GcodeOptions::default(),
             ),
@@ -200,9 +228,9 @@ pub fn export(
     };
     fs::write(path, text)?;
     let count = if is_3d(&format) {
-        collect_meshes(scene, target)?.len()
+        collect_meshes(scene, target, members)?.len()
     } else {
-        collect_shapes(scene, target)?.len()
+        collect_shapes(scene, target, members)?.len()
     };
     Ok(format!(
         "wrote {count} entit{} to {path} ({format})",

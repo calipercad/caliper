@@ -8,6 +8,7 @@ use crate::args::Args;
 use crate::error::{CadError, Result};
 use crate::export;
 use crate::geom2d::boolean::{boolean, BoolOp};
+use crate::geom2d::offset;
 use crate::geom2d::text::{self, Align};
 use crate::geom2d::Shape;
 use crate::geom3d::{self, Mesh};
@@ -192,10 +193,15 @@ impl Interpreter {
             "xor" => self.op_bool(&args, BoolOp::Xor),
             "fillet" => self.op_fillet(&args),
             "chamfer" => self.op_chamfer(&args),
+            "offset" => self.op_offset(&args, false),
+            "inset" => self.op_offset(&args, true),
             "shell" => self.op_shell(&args),
             // ---- layer / role attributes (recorded → round-trip through save) ----
             "layer" => self.op_layer(&args),
             "role" => self.op_role(&args),
+            "part" => self.op_part(&args),
+            "assembly" => self.op_assembly(&args),
+            "bom" => return Ok(self.bom(&args)),
             // ---- skills ----
             "skill" => return self.run_skill(rest, raw),
             // ---- scene / meta ----
@@ -209,6 +215,9 @@ impl Interpreter {
             "import" => self.op_import(&args),
             "list" => return Ok(self.list()),
             "bbox" => return Ok(self.bbox(&args)),
+            "measure" => return Ok(self.measure(&args)),
+            "interfere" => return Ok(self.interfere(&args)),
+            "section" => self.op_section(&args),
             "skills" => return Ok(self.list_skills()),
             "help" => return Ok(LANGUAGE_REFERENCE.to_string()),
             "undo" => return self.op_undo(),
@@ -1009,6 +1018,49 @@ impl Interpreter {
         Ok(format!("chamfered '{name}' (d{d})"))
     }
 
+    /// `offset <dist>` / `inset <dist>` — grow (+) or shrink (−) a 2D shape by a
+    /// distance. `inset` always shrinks. `join=round|miter|bevel` shapes convex
+    /// corners on an outward offset; `seg=` controls round smoothness. With a new
+    /// `name=` the result is added as a separate entity (e.g. a kerf/tool path);
+    /// otherwise the target shape is replaced in place.
+    fn op_offset(&mut self, args: &Args, inward: bool) -> Result<String> {
+        let mut dist = args.pos_f64(0)?;
+        if inward {
+            dist = -dist.abs();
+        }
+        let seg = args.usize_or("seg", 16)?;
+        let miter = args.f64_or("miter", 4.0)?;
+        let join = offset::parse_join(args.str_or("join", "round"), miter)?;
+        let target = args.get_str("target").map(|s| s.to_string());
+
+        let src = self.scene.resolve(target.as_deref())?;
+        let src_name = src.name.clone();
+        let shape = match &src.geom {
+            Geometry::Shape(s) => s.clone(),
+            Geometry::Mesh(_) => return Err(CadError::Arg("offset needs a 2D shape".into())),
+        };
+        let result = offset::offset(&shape, dist, join, seg)?;
+        if result.is_empty() {
+            return Err(CadError::Geometry(
+                "offset removed all geometry (inset distance too large?)".into(),
+            ));
+        }
+        let verb = if inward { "inset" } else { "offset" };
+        match args.name() {
+            Some(name) if name != src_name => {
+                self.scene.add(name.clone(), Geometry::Shape(result));
+                Ok(format!("{verb} '{src_name}' → '{name}' ({dist:+})"))
+            }
+            _ => {
+                let e = self.scene.resolve_mut(target.as_deref())?;
+                if let Geometry::Shape(s) = &mut e.geom {
+                    *s = result;
+                }
+                Ok(format!("{verb} '{src_name}' ({dist:+})"))
+            }
+        }
+    }
+
     /// `shell <t> [target=]` — hollow a solid mesh to wall thickness `t`
     /// (convex/prismatic solids). Replaces the target mesh in place.
     fn op_shell(&mut self, args: &Args) -> Result<String> {
@@ -1049,6 +1101,107 @@ impl Interpreter {
             .scene
             .set_attrs(target.as_deref(), None, Some(role.clone()))?;
         Ok(format!("'{name}' role={role}"))
+    }
+
+    // ---- assemblies & BOM --------------------------------------------------
+
+    /// `part <label> [target=]` — tag an entity (or a whole group) with a
+    /// part-type label used by `bom`.
+    fn op_part(&mut self, args: &Args) -> Result<String> {
+        let label = args
+            .pos_str(0)
+            .ok_or_else(|| CadError::Arg("part needs a label: part <label> [target=]".into()))?
+            .to_string();
+        let target = args.get_str("target").map(|s| s.to_string());
+        let n = self.scene.set_part(target.as_deref(), &label)?;
+        Ok(format!(
+            "part '{label}' ({n} entit{})",
+            if n == 1 { "y" } else { "ies" }
+        ))
+    }
+
+    /// `assembly <tag> <member> …` — tag the named entities into a group so the
+    /// assembly moves/exports as one unit (a friendly alias for `group`).
+    fn op_assembly(&mut self, args: &Args) -> Result<String> {
+        let tag = args
+            .pos_str(0)
+            .ok_or_else(|| CadError::Arg("usage: assembly <tag> <member> ...".into()))?
+            .to_string();
+        let members = &args.positional[1..];
+        if members.is_empty() {
+            return Err(CadError::Arg("assembly needs at least one member".into()));
+        }
+        for m in members {
+            let e = self
+                .scene
+                .get_mut(m)
+                .ok_or_else(|| CadError::NotFound(m.clone()))?;
+            e.group = Some(tag.clone());
+        }
+        Ok(format!("assembly '{tag}' ({} parts)", members.len()))
+    }
+
+    /// `bom [group=<tag>]` — bill of materials: quantities of each part across
+    /// the scene (or one assembly). Parts are grouped by their `part` label,
+    /// falling back to the entity name with trailing array digits stripped (so
+    /// `bolt`, `bolt1`, `bolt2` count as `bolt ×3`).
+    fn bom(&self, args: &Args) -> String {
+        let names: Vec<String> = match args.get_str("group") {
+            Some(tag) => match self.scene.member_names(Some(tag)) {
+                Ok(ns) => ns,
+                Err(e) => return format!("{e}\n"),
+            },
+            None => self.scene.entities.iter().map(|e| e.name.clone()).collect(),
+        };
+        if names.is_empty() {
+            return "(nothing to bill)\n".into();
+        }
+        // Accumulate per part key, preserving first-seen order.
+        let mut order: Vec<String> = Vec::new();
+        let mut qty: std::collections::HashMap<String, (usize, String, f64, f64, f64)> =
+            std::collections::HashMap::new();
+        for name in &names {
+            let e = match self.scene.get(name) {
+                Some(e) => e,
+                None => continue,
+            };
+            let key = e
+                .part
+                .clone()
+                .unwrap_or_else(|| strip_trailing_digits(&e.name).to_string());
+            let (kind, w, h, d) = match &e.geom {
+                Geometry::Shape(s) => {
+                    let b = s.bbox();
+                    ("2D", b.width(), b.height(), 0.0)
+                }
+                Geometry::Mesh(m) => {
+                    let s = m.bbox().size();
+                    ("3D", s.x, s.y, s.z)
+                }
+            };
+            let entry = qty
+                .entry(key.clone())
+                .or_insert_with(|| (0, kind.to_string(), w, h, d));
+            if entry.0 == 0 {
+                order.push(key);
+            }
+            entry.0 += 1;
+        }
+        let u = self.scene.units.suffix();
+        let mut out = format!("Bill of materials ({} part types):\n", order.len());
+        let mut total = 0usize;
+        for key in &order {
+            let (n, kind, w, h, d) = &qty[key];
+            total += n;
+            let size = if kind == "2D" {
+                format!("{w:.1}×{h:.1}{u}")
+            } else {
+                format!("{w:.1}×{h:.1}×{d:.1}{u}")
+            };
+            out.push_str(&format!("  {key:<16} ×{n:<4} {kind}  {size}\n"));
+        }
+        out.push_str(&format!("  {:-<16}\n  {:<16} {total} items\n", "", "total"));
+        out
     }
 
     // ---- skills ------------------------------------------------------------
@@ -1175,7 +1328,15 @@ impl Interpreter {
                     )
                 }
             };
-            out.push_str(&format!("  {marker} {:<16} {dims}\n", e.name));
+            // Append part/group tags when present, so assemblies are visible.
+            let mut tags = String::new();
+            if let Some(p) = &e.part {
+                tags.push_str(&format!("  part={p}"));
+            }
+            if let Some(g) = &e.group {
+                tags.push_str(&format!("  group={g}"));
+            }
+            out.push_str(&format!("  {marker} {:<16} {dims}{tags}\n", e.name));
         }
         out
     }
@@ -1213,6 +1374,160 @@ impl Interpreter {
             },
             Err(e) => format!("{e}\n"),
         }
+    }
+
+    /// `measure [target]` — mass properties of one entity (defaults to the
+    /// selection). 2D: area, perimeter, centroid, bbox. 3D: volume, surface
+    /// area, centroid, bbox, and watertightness + genus.
+    fn measure(&self, args: &Args) -> String {
+        let target = args.pos_str(0);
+        let u = self.scene.units.suffix();
+        match self.scene.resolve(target) {
+            Ok(e) => match &e.geom {
+                Geometry::Shape(s) => {
+                    let b = s.bbox();
+                    let c = s.centroid();
+                    format!(
+                        "'{}' (2D)\n  area      {:.3} {u}²\n  perimeter {:.3} {u}\n  centroid  ({:.3}, {:.3})\n  bbox      {:.3}×{:.3} {u}\n",
+                        e.name,
+                        s.area(),
+                        s.perimeter(),
+                        c.x,
+                        c.y,
+                        b.width(),
+                        b.height(),
+                    )
+                }
+                Geometry::Mesh(m) => {
+                    let b = m.bbox();
+                    let sz = b.size();
+                    let c = m.centroid();
+                    let closed = m.is_closed_manifold();
+                    let genus = if closed {
+                        let chi = m.euler_characteristic();
+                        format!("yes (χ={chi}, genus {})", (2 - chi) / 2)
+                    } else {
+                        "no (not watertight)".to_string()
+                    };
+                    format!(
+                        "'{}' (3D)\n  volume    {:.3} {u}³\n  surface   {:.3} {u}²\n  centroid  ({:.3}, {:.3}, {:.3})\n  bbox      {:.3}×{:.3}×{:.3} {u}\n  closed    {genus}\n",
+                        e.name,
+                        m.signed_volume(),
+                        m.surface_area(),
+                        c.x,
+                        c.y,
+                        c.z,
+                        sz.x,
+                        sz.y,
+                        sz.z,
+                    )
+                }
+            },
+            Err(e) => format!("{e}\n"),
+        }
+    }
+
+    /// `interfere [a b]` — clash detection. With two names, report whether they
+    /// overlap and by how much; with none, scan every pair (AABB broad-phase)
+    /// and list the clashes.
+    fn interfere(&self, args: &Args) -> String {
+        match (args.pos_str(0), args.pos_str(1)) {
+            (Some(a), Some(b)) => match self.pair_overlap(a, b) {
+                Ok(Some(msg)) => format!("{msg}\n"),
+                Ok(None) => format!("'{a}' and '{b}' are clear (no overlap)\n"),
+                Err(e) => format!("{e}\n"),
+            },
+            _ => {
+                let mut out = String::new();
+                let ents = &self.scene.entities;
+                let mut clashes = 0;
+                for i in 0..ents.len() {
+                    for j in (i + 1)..ents.len() {
+                        if let Ok(Some(msg)) = self.pair_overlap(&ents[i].name, &ents[j].name) {
+                            out.push_str(&format!("  {msg}\n"));
+                            clashes += 1;
+                        }
+                    }
+                }
+                if clashes == 0 {
+                    "no clashes detected\n".to_string()
+                } else {
+                    format!("{clashes} clash(es):\n{out}")
+                }
+            }
+        }
+    }
+
+    /// Overlap of two entities by name: `Ok(Some(report))` when they clash,
+    /// `Ok(None)` when clear, `Err` for mixed dimensionality / bad input. Uses an
+    /// AABB broad-phase before the exact boolean/CSG intersection.
+    fn pair_overlap(&self, a: &str, b: &str) -> Result<Option<String>> {
+        let ea = self.scene.resolve(Some(a))?;
+        let eb = self.scene.resolve(Some(b))?;
+        let u = self.scene.units.suffix();
+        match (&ea.geom, &eb.geom) {
+            (Geometry::Shape(sa), Geometry::Shape(sb)) => {
+                if !sa.bbox().intersects(&sb.bbox(), 0.0) {
+                    return Ok(None);
+                }
+                let inter = sa.intersection(sb)?;
+                let area = inter.area();
+                if area > 1e-9 {
+                    Ok(Some(format!("'{a}' ∩ '{b}' overlap area {area:.3} {u}²")))
+                } else {
+                    Ok(None)
+                }
+            }
+            (Geometry::Mesh(ma), Geometry::Mesh(mb)) => {
+                if !ma.bbox().intersects(&mb.bbox(), 0.0) {
+                    return Ok(None);
+                }
+                let inter = geom3d::csg::intersection(ma, mb)?;
+                let vol = inter.signed_volume();
+                if vol > 1e-9 {
+                    Ok(Some(format!("'{a}' ∩ '{b}' overlap volume {vol:.3} {u}³")))
+                } else {
+                    Ok(None)
+                }
+            }
+            _ => Err(CadError::Arg(format!(
+                "cannot compare 2D '{a}' with 3D '{b}'"
+            ))),
+        }
+    }
+
+    /// `section <target> [axis=z] [at=<coord>] [name=]` — slice a mesh by an
+    /// axis-aligned plane into a new 2D shape entity.
+    fn op_section(&mut self, args: &Args) -> Result<String> {
+        let target = args.get_str("target").or_else(|| args.pos_str(0));
+        let src = self.scene.resolve(target)?;
+        let src_name = src.name.clone();
+        let mesh = match &src.geom {
+            Geometry::Mesh(m) => m.clone(),
+            Geometry::Shape(_) => return Err(CadError::Arg("section needs a 3D mesh".into())),
+        };
+        let axis = geom3d::section::Axis::parse(args.str_or("axis", "z"))
+            .ok_or_else(|| CadError::Arg("axis must be x, y, or z".into()))?;
+        let at = match args.get_str("at") {
+            Some(_) => args.f64("at")?,
+            None => {
+                let b = mesh.bbox();
+                let c = b.center();
+                match axis {
+                    geom3d::section::Axis::X => c.x,
+                    geom3d::section::Axis::Y => c.y,
+                    geom3d::section::Axis::Z => c.z,
+                }
+            }
+        };
+        let shape = geom3d::section::section(&mesh, axis, at)?;
+        let name = args
+            .name()
+            .unwrap_or_else(|| self.scene.auto_name(&format!("{src_name}_sec")));
+        self.scene.add(name.clone(), Geometry::Shape(shape));
+        Ok(format!(
+            "section '{src_name}' at {axis:?}={at:.3} → '{name}'"
+        ))
     }
 
     fn list_skills(&self) -> String {
@@ -1369,7 +1684,19 @@ impl Interpreter {
             .to_string();
         let target = args.get_str("name");
         let binary = args.flag("binary");
-        export::export(&self.scene, &format, &path, target, binary)
+        // `group=<tag>` exports a whole assembly (all its members) to one file.
+        let members = match args.get_str("group") {
+            Some(tag) => Some(self.scene.member_names(Some(tag))?),
+            None => None,
+        };
+        export::export(
+            &self.scene,
+            &format,
+            &path,
+            target,
+            members.as_deref(),
+            binary,
+        )
     }
 
     fn load(&mut self, args: &Args) -> Result<String> {
@@ -1453,6 +1780,17 @@ impl Default for Interpreter {
 }
 
 /// Substitute `${key}` / `${key:default}` placeholders in a script-skill body.
+/// Strip trailing ASCII digits from a name so array copies (`bolt`, `bolt1`,
+/// `bolt2`) share a BOM key. A name that is all digits is returned unchanged.
+fn strip_trailing_digits(name: &str) -> &str {
+    let trimmed = name.trim_end_matches(|c: char| c.is_ascii_digit());
+    if trimmed.is_empty() {
+        name
+    } else {
+        trimmed
+    }
+}
+
 /// Is `s` a valid variable name? Letters/digits/`_`, not starting with a digit.
 fn is_var_name(s: &str) -> bool {
     let mut cs = s.chars();
@@ -1583,15 +1921,20 @@ fn is_modifying(cmd: &str) -> bool {
             | "group"
             | "ungroup"
             | "dim"
+            | "section"
             | "union"
             | "subtract"
             | "intersect"
             | "xor"
             | "fillet"
             | "chamfer"
+            | "offset"
+            | "inset"
             | "shell"
             | "layer"
             | "role"
+            | "part"
+            | "assembly"
             | "units"
             | "select"
             | "delete"

@@ -40,10 +40,12 @@ cad-assist/                 workspace root (no package)
 │   │       ├── geom2d.rs       Contour, Shape + builders, windings, fillet/chamfer
 │   │       ├── geom2d/
 │   │       │   ├── boolean.rs  exact-integer union/difference/intersection/xor
+│   │       │   ├── offset.rs   polygon offset / inset (round/miter/bevel joins)
 │   │       │   └── text/       single-stroke font + stroke_text layout
-│   │       ├── geom3d.rs       Mesh + primitives, holed extrude, revolve, triangulate
+│   │       ├── geom3d.rs       Mesh + primitives, holed extrude, revolve, mass props
 │   │       ├── geom3d/
-│   │       │   └── csg.rs      BSP mesh booleans + shell (3D CSG)
+│   │       │   ├── csg.rs      BSP mesh booleans + shell (3D CSG)
+│   │       │   └── section.rs  axis-aligned mesh cross-section → 2D Shape
 │   │       ├── scene.rs        Units, Geometry, Entity, Scene
 │   │       ├── args.rs         positional/option arg parsing
 │   │       ├── skills/         Skill trait + registry + 20 built-ins
@@ -77,7 +79,16 @@ cad-assist/                 workspace root (no package)
   under its smallest containing shell as a **`Region { outer, holes }`**. Boolean
   ops (`union`/`difference`/`intersection`/`xor`) delegate to `geom2d::boolean`
   and return a classified `Shape`. Builders: `rect`, `circle`, `polygon`, `star`,
-  `polyline`, `arc`; edge ops: `fillet`, `chamfer`.
+  `polyline`, `arc`; edge ops: `fillet`, `chamfer`, `offset`. Measurement:
+  `area`, `perimeter`, `centroid` (area-weighted, holes subtract), `bbox`.
+- **`geom2d::offset`** — polygon offset/inset. `offset(shape, dist, join, seg)`
+  (`+` grows, `−` shrinks) moves each contour's edges along `−perp(dir)·dist`
+  (orientation-free — the winding encodes the material side), reconnects corners
+  with a round/miter/bevel **`JoinKind`**, and `normalize_windings()`. A per-edge
+  reversal test drops any contour an over-large inset erodes through, so an inset
+  past a profile's own width returns empty rather than self-intersecting junk.
+  Independent of the boolean engine — fast and robust on high-vertex/concave
+  contours.
 - **`geom2d::boolean`** — the exact-integer planar-overlay clipper. Both shapes'
   edges snap to a shared integer lattice (grid `= ext·1e-9`, keeping coords
   `≲2^30` so `i128` orient/intersection stay exact); the arrangement of atomic
@@ -89,10 +100,15 @@ cad-assist/                 workspace root (no package)
   triangles. `feature_edges(angle)` yields boundary + crease edges for clean
   wireframes; `is_closed_manifold` (half-edge balance) and
   `euler_characteristic` (V−E+F → genus) verify watertightness. Primitives:
-  `cuboid`, `cylinder`, `cone`, `sphere`. Free functions: `extrude` (holed caps
-  via keyhole bridging over `regions()`, welded to one shared vertex ring),
-  `revolve`, `triangulate_with_holes`, `triangulate` (ear-clipping with a fan
-  fallback).
+  `cuboid`, `cylinder`, `cone`, `sphere`. Measurement: `signed_volume`,
+  `surface_area`, `centroid` (volume-weighted via signed tetrahedra). Free
+  functions: `extrude` (holed caps via keyhole bridging over `regions()`, welded
+  to one shared vertex ring), `revolve`, `triangulate_with_holes`, `triangulate`
+  (ear-clipping with a fan fallback).
+- **`geom3d::section`** — `section(mesh, axis, at)` slices a mesh by an
+  axis-aligned plane: marching-triangles cut segments are welded on a grid and
+  walked into closed loops (a 2D `Shape`); a dangling endpoint (open/non-manifold
+  cut) is a clean error.
 - **`geom3d::csg`** — 3D constructive solid geometry. `union`/`difference`/
   `intersection` on closed-manifold meshes via a BSP-tree kernel (csg.js
   approach), then a T-junction healing pass (subdivide edges at stray vertices)
@@ -101,13 +117,18 @@ cad-assist/                 workspace root (no package)
   Non-manifold input returns a clean error. The `union`/`subtract`/`intersect`
   commands dispatch here for meshes and to `geom2d::boolean` for shapes.
 - **`Geometry` = `Shape | Mesh`**, wrapped in **`Entity { name, geom, layer,
-  role, group }`**, held by **`Scene { entities, units, selected,
+  role, group, part }`**, held by **`Scene { entities, units, selected,
   auto_counter }`**. The scene tracks the current selection so most ops default
   to "the selected entity." `layer`/`role` (both `Option<String>`, via
   `Scene::set_attrs`) are export attributes: exporters group by layer (falling
   back to `role`, then `"0"`) and color by role. `group: Option<String>` tags
   entities that move/transform together; `Scene::member_names(target)` expands a
-  group name to its members so `translate g` moves the whole group.
+  group name to its members so `translate g` moves the whole group — and the
+  same tag names an **assembly** (`assembly`/`export group=`). `part:
+  Option<String>` (via `Scene::set_part`) is the bill-of-materials label: `bom`
+  counts entities by part label, falling back to the name with array digits
+  stripped. Exporters take an optional member-name filter so a group exports as
+  one file.
 - **`geom2d::text`** — single-stroke text for engraving/plotting.
   `stroke_text(text, height, align)` lays out the built-in in-tree single-stroke
   vector font (`geom2d::text::font`, `const` data for printable ASCII) into a

@@ -38,6 +38,15 @@ impl Aabb2 {
     pub fn center(&self) -> Vec2 {
         (self.min + self.max) * 0.5
     }
+
+    /// Whether two boxes overlap, allowing a small negative `slack` to treat a
+    /// bare touch as non-overlapping (broad-phase for interference tests).
+    pub fn intersects(&self, o: &Aabb2, slack: f64) -> bool {
+        self.min.x <= o.max.x - slack
+            && self.max.x >= o.min.x + slack
+            && self.min.y <= o.max.y - slack
+            && self.max.y >= o.min.y + slack
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -73,5 +82,16 @@ impl Aabb3 {
 
     pub fn center(&self) -> Vec3 {
         (self.min + self.max) * 0.5
+    }
+
+    /// Whether two boxes overlap, allowing a small negative `slack` to treat a
+    /// bare touch as non-overlapping (broad-phase for interference tests).
+    pub fn intersects(&self, o: &Aabb3, slack: f64) -> bool {
+        self.min.x <= o.max.x - slack
+            && self.max.x >= o.min.x + slack
+            && self.min.y <= o.max.y - slack
+            && self.max.y >= o.min.y + slack
+            && self.min.z <= o.max.z - slack
+            && self.max.z >= o.min.z + slack
     }
 }
