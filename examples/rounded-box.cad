@@ -1,0 +1,16 @@
+# rounded-box.cad — a soft-edged enclosure lid. Shows 3D edge rounding: the box
+# is filleted on all its sharp edges (top & bottom rims included), which the
+# fillet-the-profile-then-extrude workflow can't do for the caps.
+#
+#   cad run examples/rounded-box.cad
+
+units mm
+
+set r 5              # edge radius
+
+box 80 50 20 name=lid
+fillet $r seg=4 target=lid     # round every sharp convex edge, 4 facets each
+
+measure lid          # still a closed manifold, volume reduced by the rounds
+render mode=hlr
+export stl rounded-box.stl name=lid

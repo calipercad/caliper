@@ -993,29 +993,47 @@ impl Interpreter {
         Ok(format!("{verb} '{a_name}','{b_name}' → '{name}'"))
     }
 
+    /// `fillet <r> [seg=] [angle=] [target=]` — round corners. Auto-dispatches by
+    /// kind: a 2D shape rounds its contour corners; a 3D mesh rounds its sharp
+    /// convex edges with `seg` facets (faceted round, convex/prismatic solids).
     fn op_fillet(&mut self, args: &Args) -> Result<String> {
         let r = args.pos_f64(0)?;
-        let seg = args.usize_or("seg", 16)?;
         let target = args.get_str("target").map(|s| s.to_string());
         let e = self.scene.resolve_mut(target.as_deref())?;
         let name = e.name.clone();
         match &mut e.geom {
-            Geometry::Shape(s) => *s = s.fillet(r, seg),
-            Geometry::Mesh(_) => return Err(CadError::Arg("fillet needs a 2D shape".into())),
+            Geometry::Shape(s) => {
+                let seg = args.usize_or("seg", 16)?;
+                *s = s.fillet(r, seg);
+                Ok(format!("filleted '{name}' (r{r}, {seg} seg)"))
+            }
+            Geometry::Mesh(m) => {
+                let seg = args.usize_or("seg", 3)?;
+                let angle = args.f64_or("angle", 20.0)?;
+                *m = geom3d::bevel::fillet(m, r, seg, angle)?;
+                Ok(format!("filleted mesh '{name}' (r{r}, {seg} facets)"))
+            }
         }
-        Ok(format!("filleted '{name}' (r{r}, {seg} seg)"))
     }
 
+    /// `chamfer <d> [angle=] [target=]` — bevel corners. 2D shape: contour
+    /// corners; 3D mesh: sharp convex edges cut back by `d` (convex/prismatic).
     fn op_chamfer(&mut self, args: &Args) -> Result<String> {
         let d = args.pos_f64(0)?;
         let target = args.get_str("target").map(|s| s.to_string());
         let e = self.scene.resolve_mut(target.as_deref())?;
         let name = e.name.clone();
         match &mut e.geom {
-            Geometry::Shape(s) => *s = s.chamfer(d),
-            Geometry::Mesh(_) => return Err(CadError::Arg("chamfer needs a 2D shape".into())),
+            Geometry::Shape(s) => {
+                *s = s.chamfer(d);
+                Ok(format!("chamfered '{name}' (d{d})"))
+            }
+            Geometry::Mesh(m) => {
+                let angle = args.f64_or("angle", 20.0)?;
+                *m = geom3d::bevel::chamfer(m, d, angle)?;
+                Ok(format!("chamfered mesh '{name}' (d{d})"))
+            }
         }
-        Ok(format!("chamfered '{name}' (d{d})"))
     }
 
     /// `offset <dist>` / `inset <dist>` — grow (+) or shrink (−) a 2D shape by a

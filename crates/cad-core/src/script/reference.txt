@@ -46,8 +46,9 @@ OPERATIONS (default target = current selection; override with target=<id>)
   subtract <a> <b> [name=]                         a − b  (2D or 3D, by operand kind)
   intersect <a> <b> [name=]                        a ∩ b  (2D or 3D)
   xor <a> <b> [name=]                              a ⊕ b  (2D shapes only)
-  fillet <r> [seg=16] [target=]                    round contour corners (2D)
-  chamfer <d> [target=]                            bevel contour corners (2D)
+  fillet <r> [seg=] [angle=20] [target=]           round corners: 2D contour, or 3D mesh edges
+  chamfer <d> [angle=20] [target=]                 bevel corners: 2D contour, or 3D mesh edges
+  (3D fillet/chamfer round the sharp convex edges of a solid; convex/prismatic)
   offset <dist> [join=round|miter|bevel] [seg=16] [miter=4] [target=] [name=]
                                                    grow(+)/shrink(−) a 2D profile (kerf/clearance)
   inset <dist> [join= seg= target= name=]          shrink a 2D profile by dist (= offset −dist)
@@ -64,7 +65,7 @@ OPERATIONS (default target = current selection; override with target=<id>)
   part <label> [target=]                           tag an entity/group as a part type (for bom)
   assembly <tag> <member> …                        group named parts into an assembly
   (transforms/array/mirror act on a whole group when target= names a group)
-  (rounded/beveled 3D edges: fillet/chamfer the 2D profile, then extrude)
+  (3D edges: fillet/chamfer a mesh directly, or fillet the 2D profile then extrude)
 
 SKILLS (parametric generators — run `skills` for the full list + usage)
   skill gear teeth=<n> module=<mm> [pressure=20] [bore=<mm>] [thickness=<mm>]

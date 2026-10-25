@@ -3,6 +3,31 @@
 All notable changes to cad-assist are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## [1.3.0] — 3D edge fillet & chamfer
+
+`fillet` and `chamfer` now round/bevel the edges of a solid `Mesh`, not just the
+2D profile before `extrude` — so the top/bottom rims of an extrusion and the
+edges of a CSG result can be softened. Both commands auto-dispatch by geometry
+kind (2D shape → contour corners, as before; 3D mesh → edge bevel).
+
+### Added
+- **3D edge bevel** (`geom3d::bevel`): `fillet(mesh, r, seg, angle)` replaces each
+  sharp convex edge with `seg` facets tangent to a radius-`r` cylinder (a faceted
+  round); `chamfer(mesh, d, angle)` cuts each edge back by `d`. Corners where
+  edges meet blend automatically.
+- Built by **vertex enumeration** of the convex polytope bounded by the solid's
+  face planes plus the per-edge cutting planes — exact and closed-manifold by
+  construction, avoiding the fragility of many sequential BSP booleans.
+- Commands: `fillet <r> [seg=3] [angle=20] [target=]` and
+  `chamfer <d> [angle=20] [target=]` on a mesh. `angle=` is the sharpness
+  threshold (so a cylinder's side facets aren't beveled, only its rims).
+- Example `examples/rounded-box.cad`.
+
+### Scope
+- Defined for **convex / prismatic solids** (boxes, extruded/revolved prisms,
+  wedges) — the same regime as `shell`. A non-convex solid is rejected with a
+  clean error. The result is verified a closed manifold.
+
 ## [1.2.0] — Geometry & assembly expansion
 
 Three post-1.0 phases in one release: a real 2D offset, measurement/analysis,

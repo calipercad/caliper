@@ -34,6 +34,7 @@ foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
 | 10 | v1.2 | Robust 2D offset / inset | ✅ complete |
 | 11 | v1.2 | Measurement & analysis | ✅ complete |
 | 12 | v1.2 | Assemblies & BOM | ✅ complete |
+| 13 | v1.3 | 3D edge fillet & chamfer | ✅ complete |
 
 ---
 
@@ -42,8 +43,8 @@ foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
 The eight-phase roadmap delivered a coherent v1.0. Growth continues as
 independent, checkpointed phases in the same spirit (std-only, text-first,
 every fix gets a test). Phases 9–12 are shipped, below; further candidates
-include outline/stencil text (TrueType `glyf`), true 3D edge rounding, and a
-relax-std-only polish phase (WASM/dylib plugin host, cargo-fuzz, PDF/3MF).
+include outline/stencil text (TrueType `glyf`) and a relax-std-only polish phase
+(WASM/dylib plugin host, cargo-fuzz, PDF/3MF).
 
 ## Phase 9 — Parametric expressions & variables ✅ (v1.1)
 
@@ -120,6 +121,29 @@ writes a whole assembly. `list` shows `part=`/`group=`; both round-trip `save`.
 labelled part collapses copies; a group translate moves the assembly;
 group-aware export writes only the members; `cargo test` green
 (`tests/phase12.rs`).
+
+---
+
+## Phase 13 — 3D edge fillet & chamfer ✅ (v1.3)
+
+**Objective.** Round/bevel the edges of a solid `Mesh`, not just the 2D profile
+before `extrude` (which leaves the extrusion rims sharp).
+
+**Delivered.** `fillet`/`chamfer` auto-dispatch by kind: a 2D shape rounds its
+contour corners (unchanged); a 3D mesh bevels its sharp convex edges
+(`geom3d::bevel`). `chamfer` adds one bisector plane per edge; `fillet` adds
+`seg` cylinder-tangent planes (a faceted round). The beveled solid is rebuilt by
+**vertex enumeration** of the convex polytope bounded by the face planes plus the
+cutting planes — exact and closed-manifold by construction, no fragile BSP
+chains. `angle=` filters which edges count as sharp (so curved facets aren't
+beveled, only true rims/corners).
+
+**Scope.** Convex / prismatic solids (like `shell`); non-convex input is rejected
+with a clean error, output is verified a closed manifold.
+
+**Checkpoint (met).** `box 40 40 20 ; chamfer 5` and `; fillet 5 seg=4` stay
+closed genus-0 manifolds with volume reduced the right way; the 2D path is
+unchanged; a non-convex solid errors; `cargo test` green (`tests/phase13.rs`).
 
 ---
 

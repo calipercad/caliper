@@ -1,5 +1,6 @@
 //! 3D geometry: triangle meshes, solid primitives and extrusion.
 
+pub mod bevel;
 pub mod csg;
 pub mod section;
 
@@ -223,7 +224,7 @@ impl Mesh {
     /// what makes the shared cap/wall ring vertices (which appear once in
     /// `verts` but are referenced by both caps and walls) count as a single
     /// topological vertex.
-    fn canonical_index_map(&self) -> Vec<usize> {
+    pub(crate) fn canonical_index_map(&self) -> Vec<usize> {
         use std::collections::HashMap;
         let n = self.verts.len();
         let mut canon = vec![0usize; n];

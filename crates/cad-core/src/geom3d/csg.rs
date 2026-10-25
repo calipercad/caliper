@@ -436,7 +436,7 @@ fn face_planes(mesh: &Mesh) -> Vec<(Vec3, f64)> {
 /// A large oriented box solid covering the half-space `normal · x ≤ w`, so
 /// intersecting a mesh with it clips the mesh by that plane. Reuses
 /// [`Mesh::cuboid`]'s correct outward winding under a right-handed basis.
-fn halfspace_box(normal: Vec3, w: f64, reach: f64) -> Mesh {
+pub(crate) fn halfspace_box(normal: Vec3, w: f64, reach: f64) -> Mesh {
     let n = normal.normalized();
     // Build a right-handed frame {t1, t2, n} (t1 × t2 = n).
     let a = if n.x.abs() < 0.9 {

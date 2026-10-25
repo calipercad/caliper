@@ -109,6 +109,13 @@ cad-assist/                 workspace root (no package)
   axis-aligned plane: marching-triangles cut segments are welded on a grid and
   walked into closed loops (a 2D `Shape`); a dangling endpoint (open/non-manifold
   cut) is a clean error.
+- **`geom3d::bevel`** — 3D edge `fillet`/`chamfer` for convex/prismatic solids.
+  Each sharp convex edge contributes cutting plane(s) (chamfer: one bisector;
+  fillet: `seg` cylinder-tangent planes); the beveled solid is rebuilt by
+  **vertex enumeration** of the convex polytope bounded by the face planes plus
+  those cuts (every valid triple-plane vertex, assembled into faces) — exact and
+  closed-manifold by construction, so it sidesteps the accumulating fragility of
+  chaining many BSP booleans. Non-convex input is rejected.
 - **`geom3d::csg`** — 3D constructive solid geometry. `union`/`difference`/
   `intersection` on closed-manifold meshes via a BSP-tree kernel (csg.js
   approach), then a T-junction healing pass (subdivide edges at stray vertices)
@@ -180,11 +187,10 @@ above, rewriting a token to a number string before it reaches `Args`.
 
 ## Known limitations (addressed by the roadmap)
 
-- **3D edge rounding is profile-only.** Mesh CSG (`box − cylinder`) and `shell`
-  ship in Phase 3, but rounded edges come from filleting the 2D profile before
-  `extrude` — rounding an arbitrary existing mesh's edges is future work, and
-  `shell` is convex/prismatic-limited (a robust general inward offset is future
-  work).
+- **3D edge rounding is convex/prismatic.** `fillet`/`chamfer` round a solid
+  mesh's edges (`geom3d::bevel`, Phase 13) for convex/prismatic solids; rounding
+  an arbitrary concave mesh's edges is future work, as is a robust general inward
+  offset (`shell` is likewise convex/prismatic-limited).
 - **Dimensioning is bbox-only.** `dim` annotates a shape's overall width/height;
   per-feature dimensions, tolerances, and 3D dims are future work.
 - **Remaining interop/UX gaps** (deferred to keep the kernel zero-dependency):
