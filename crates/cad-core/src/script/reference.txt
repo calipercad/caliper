@@ -5,6 +5,20 @@ is one token. Options are key=value; bare numbers are positional. Angles are
 degrees; lengths are in the current document units (default mm). Most creators
 accept name=<id>; if omitted, a name is auto-generated and auto-selected.
 
+VARIABLES & EXPRESSIONS (parametric designs)
+  set <name> <expr>      define/update a numeric variable (set w 40; set h $w*2)
+  unset <name>           remove a variable
+  vars                   list current variables
+  Any argument may be an expression. A token containing `$` is evaluated:
+    $name                a variable's value           rect $w $w*2
+    ${ ... }             explicit braces / escape     rect ${40*2} ${w/4}
+                         hatch; splices into text     export svg part_${w}.svg
+  Operators  + - * / %  and  ^ (power);  parentheses;  unary minus.
+  Functions  sin cos tan asin acos atan atan2 sqrt abs floor ceil round sign
+             min max clamp pow hypot rad(deg) deg(rad).  Constants  pi tau e.
+  (trig is in radians; use rad()/deg() to convert. Tokens without `$` are
+   literals — existing scripts are unaffected. `save` keeps expressions verbatim.)
+
 2D PRIMITIVES (lie in the XY plane)
   rect <w> <h> [rx=<corner>] [seg=8] [name=]      rectangle (rx rounds corners)
   circle <r> [seg=64] [name=]                      circle
@@ -107,6 +121,7 @@ FILES & AI
 
 EXAMPLE
   units mm
-  skill gear teeth=24 module=2 bore=5 thickness=6 name=g1
+  set teeth 24
+  skill gear teeth=$teeth module=2 bore=5 thickness=6 name=g1
   render
   export stl gear.stl name=g1

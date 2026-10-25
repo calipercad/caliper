@@ -3,6 +3,35 @@
 All notable changes to cad-assist are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## [1.1.0] — Parametric expressions & variables
+
+The first post-1.0 feature: the script language becomes truly parametric. One
+`set` drives the whole part, and any argument can be an arithmetic expression.
+Still std-only and zero-dependency; fully backward compatible (expansion fires
+only on a `$`).
+
+### Added
+- **Variables**: `set <name> <expr>`, `unset <name>`, `vars`. Values are
+  expressions evaluated against the current variables (`set h $w*2`). Stored on
+  the interpreter and included in undo/redo snapshots.
+- **Expressions anywhere a value appears** — a token containing `$` is
+  evaluated: `$name` references, bare `$w*2`, and `${expr}` braces (an escape
+  hatch needing no variable, and string interpolation like `part_${w}.svg`).
+  Only the value side of `key=value` is touched; tokens without `$` are
+  literals. Skill arguments see variables too (`skill gear teeth=$t`).
+- **Evaluator** (`src/script/expr.rs`, unit-tested): `+ - * / %`, right-assoc
+  power `^`, unary sign, parentheses; functions `sin cos tan asin acos atan
+  atan2 sqrt abs floor ceil round sign min max clamp pow hypot rad deg`;
+  constants `pi tau e`. Clear errors for unknown variable/function, division by
+  zero, and malformed input.
+- `tests/phase9.rs` end-to-end suite; `help`/reference and `docs/DESIGN.md`
+  updated.
+
+### Preserved
+- `save` records the raw command lines, so a saved `.cad` keeps the `set` lines
+  and expressions verbatim — the parametric intent round-trips and re-`load`
+  reproduces the scene.
+
 ## [1.0.0] — Extensibility & release
 
 The roadmap is complete. This release makes cad-assist extensible, adds

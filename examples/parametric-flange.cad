@@ -1,0 +1,31 @@
+# parametric-flange.cad — one set of numbers drives the whole part.
+# Change `size` or `bolts` and everything re-derives. This is what variables
+# and expressions (v1.1) buy you: a model, not a drawing.
+#
+#   cad run examples/parametric-flange.cad
+
+units mm
+
+# --- parameters: edit these two lines, the rest follows ---
+set size 60         # outer diameter of the flange
+set bolts 6         # number of bolt holes
+
+# derived dimensions
+set r      $size/2          # outer radius
+set bore   $size/5          # center bore radius
+set circle $size*0.36       # bolt-circle radius
+set hole   $size/20         # bolt-hole radius
+
+# flange body with a center bore
+circle $r name=body
+circle $bore name=center
+subtract body center name=flange
+
+# one bolt hole, arrayed around the bolt circle
+circle $hole name=bolt
+translate $circle 0 target=bolt
+array $bolts kind=polar about=origin target=bolt name=bolts
+
+render mode=2d
+export svg parametric-flange.svg
+export dxf parametric-flange.dxf

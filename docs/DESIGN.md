@@ -119,9 +119,9 @@ cad-assist/                 workspace root (no package)
 
 ## The interpreter & history
 
-`script::Interpreter` owns a `Scene`, the `SkillRegistry`, the user skill dir,
-and a **history** of scene-modifying commands. The dispatch rule that keeps
-`save` correct:
+`script::Interpreter` owns a `Scene`, the `SkillRegistry`, the user skill dir, a
+store of **variables** (`HashMap<String, f64>`), and a **history** of
+scene-modifying commands. The dispatch rule that keeps `save` correct:
 
 > **Record the highest-level deterministic command.**
 
@@ -136,6 +136,26 @@ and a **history** of scene-modifying commands. The dispatch rule that keeps
 
 `save` pins the current units once at the top and skips recorded `units` lines,
 so a saved script has exactly one, correct unit declaration.
+
+### Variables & expressions
+
+The language is **parametric**: `set <name> <expr>` defines a numeric variable,
+and wherever a command takes a value, a token containing `$` is evaluated as an
+arithmetic expression (`geom2d`-free scalar math in `script::expr`) rather than
+parsed as a literal. `$name` resolves a variable; `${expr}` braces group an
+expression and splice into surrounding text (`part_${w}.svg`). Expansion runs in
+`exec_line` after tokenising and before `Args` parsing, touching only the value
+side of `key=value` and only tokens that contain `$` — so non-parametric scripts
+are byte-for-byte unaffected, and skill arguments inherit variables for free.
+
+Expansion is deliberately *not* baked into history: `exec_line` records the raw,
+unexpanded line, so a saved `.cad` keeps `set w 40` and `rect $w $w*2` verbatim
+and stays parametric across a round-trip. `set`/`unset` are recorded (ordered
+before their uses) and, with the variable store, are carried in the undo/redo
+snapshot tuple `(Scene, history, vars)` so a parametric edit is reversible.
+There is no typed value system elsewhere: a token is a `String` and numeric
+meaning is still imposed at read time by `Args` — the evaluator sits one level
+above, rewriting a token to a number string before it reaches `Args`.
 
 ## Known limitations (addressed by the roadmap)
 

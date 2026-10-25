@@ -17,7 +17,7 @@ foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
 
 ## Status at a glance
 
-**🎉 v1.0 released — all eight phases complete.**
+**🎉 v1.0 released — all eight foundational phases complete. Now building beyond.**
 
 | Phase | Version | Theme | State |
 |---|---|---|---|
@@ -30,6 +30,41 @@ foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
 | 6 | v0.7 | AI copilot (inspect-iterate-repair loop) | ✅ complete |
 | 7 | v0.8 | Interop & UX (import, undo, watch, richer export) | ✅ complete |
 | 8 | v1.0 | Extensibility & release (plugins, fuzz, CI, packaging) | ✅ complete |
+| 9 | v1.1 | Parametric expressions & variables | ✅ complete |
+
+---
+
+## Post-1.0 directions
+
+The eight-phase roadmap delivered a coherent v1.0. Growth continues as
+independent, checkpointed phases in the same spirit (std-only, text-first,
+every fix gets a test). Candidate follow-ups: robust 2D polygon offset/inset
+(kerf & tool compensation, outline text, general shell); measurement & analysis
+(mass properties, interference, cross-sections); assemblies & BOM. The first
+post-1.0 phase is **Phase 9**, below.
+
+## Phase 9 — Parametric expressions & variables ✅ (v1.1)
+
+**Objective.** Make designs *parametric*: name a value once and drive the whole
+part from it, with arithmetic wherever a number is accepted.
+
+**Delivered.**
+- **Variables** — `set <name> <expr>`, `unset`, `vars`. Values are expressions
+  over the current variables (`set h $w*2`), stored on the `Interpreter` and
+  carried in the undo/redo snapshot.
+- **Expressions** — any argument token containing `$` is evaluated: `$name`,
+  bare `$w*2`, and `${expr}` braces (escape hatch + string interpolation into
+  filenames/text). Only the value side of `key=value` is expanded; tokens with
+  no `$` stay literal (fully backward compatible). Skill args inherit variables.
+- **Evaluator** (`src/script/expr.rs`) — `+ - * / %`, right-assoc `^`, unary
+  sign, parentheses; functions (`sin`/`cos`/`sqrt`/`min`/`max`/`clamp`/`rad`/
+  `deg`/…); constants `pi`/`tau`/`e`; clear errors.
+- **Round-trip** — `save` records raw lines, so expressions and `set` survive
+  verbatim and re-`load` reproduces the scene.
+
+**Checkpoint (met).** `set w 40 ; rect $w $w*2` builds a 40×80 plate; `save`
+emits the literal expressions; `undo` reverts a variable; `cargo test` green
+(`tests/phase9.rs` + `expr` unit tests), `fmt`/`clippy -D warnings` clean.
 
 ---
 

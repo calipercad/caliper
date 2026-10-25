@@ -15,7 +15,10 @@ use crate::math::{rad, Mat4, Vec2, Vec3};
 use crate::render::{self, RenderMode, RenderOptions};
 use crate::scene::{Geometry, Scene, Units};
 use crate::skills::SkillRegistry;
+use std::collections::HashMap;
 use std::path::PathBuf;
+
+pub mod expr;
 
 pub const LANGUAGE_REFERENCE: &str = include_str!("reference.txt");
 
@@ -49,14 +52,20 @@ pub struct Interpreter {
     pub user_skill_dir: Option<PathBuf>,
     /// Reproducible log of scene-modifying commands (for `save`).
     pub history: Vec<String>,
+    /// Named numeric variables for parametric expressions (`set w 40`, `$w`).
+    pub vars: HashMap<String, f64>,
     /// Context of the last AI copilot run that did not converge: `(request,
     /// note)`, consumed by `ai fix`.
     pub last_ai: Option<(String, String)>,
-    /// Undo/redo snapshots of `(scene, history)` taken before each
+    /// Undo/redo snapshots of `(scene, history, vars)` taken before each
     /// scene-modifying command.
-    undo_stack: Vec<(Scene, Vec<String>)>,
-    redo_stack: Vec<(Scene, Vec<String>)>,
+    undo_stack: Vec<Snapshot>,
+    redo_stack: Vec<Snapshot>,
 }
+
+/// A point-in-time snapshot restored by `undo`/`redo`: the scene, the history
+/// log, and the variable store move together so a parametric edit is reversible.
+type Snapshot = (Scene, Vec<String>, HashMap<String, f64>);
 
 /// Maximum undo depth kept in memory.
 const MAX_UNDO: usize = 100;
@@ -68,10 +77,21 @@ impl Interpreter {
             skills: SkillRegistry::with_builtins(),
             user_skill_dir: default_skill_dir(),
             history: Vec::new(),
+            vars: HashMap::new(),
             last_ai: None,
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
         }
+    }
+
+    /// Push a pre-command snapshot onto the undo stack, bounding its depth and
+    /// invalidating the redo stack (a new edit forks history).
+    fn push_undo(&mut self, snap: Snapshot) {
+        self.undo_stack.push(snap);
+        if self.undo_stack.len() > MAX_UNDO {
+            self.undo_stack.remove(0);
+        }
+        self.redo_stack.clear();
     }
 
     /// The directory user script-skills (`*.cad` plugins) live in, if known.
@@ -116,12 +136,26 @@ impl Interpreter {
             return Ok(String::new());
         }
         let cmd = tokens[0].as_str();
-        let rest = &tokens[1..];
+
+        // Variable commands own their raw tokens: the variable *name* is a
+        // literal (never expanded) and the value is evaluated against `vars`.
+        match cmd {
+            "set" => return self.op_set(&tokens, raw),
+            "unset" => return self.op_unset(&tokens, raw),
+            "vars" => return Ok(self.list_vars()),
+            _ => {}
+        }
+
+        // Expand `$var` / `${expr}` in every argument before parsing. Only the
+        // value side of `key=value` is touched; tokens without `$` pass through
+        // unchanged, so non-parametric scripts behave exactly as before.
+        let expanded = expand_tokens(&tokens[1..], &self.vars)?;
+        let rest = &expanded[..];
         let args = Args::from_tokens(rest);
 
         // Snapshot state before a scene-modifying command, for undo.
         let snap = if is_modifying(cmd) {
-            Some((self.scene.clone(), self.history.clone()))
+            Some((self.scene.clone(), self.history.clone(), self.vars.clone()))
         } else {
             None
         };
@@ -192,24 +226,21 @@ impl Interpreter {
         // undo snapshot of the state from before the command.
         if result.is_ok() {
             if let Some(s) = snap {
-                self.undo_stack.push(s);
-                if self.undo_stack.len() > MAX_UNDO {
-                    self.undo_stack.remove(0);
-                }
-                self.redo_stack.clear();
+                self.push_undo(s);
             }
             self.history.push(raw.trim().to_string());
         }
         result
     }
 
-    /// `undo` — restore the scene + history to before the last command.
+    /// `undo` — restore the scene + history + vars to before the last command.
     fn op_undo(&mut self) -> Result<String> {
         match self.undo_stack.pop() {
-            Some((scene, history)) => {
+            Some((scene, history, vars)) => {
                 self.redo_stack.push((
                     std::mem::replace(&mut self.scene, scene),
                     std::mem::take(&mut self.history),
+                    std::mem::replace(&mut self.vars, vars),
                 ));
                 self.history = history;
                 Ok("undid last change".into())
@@ -221,16 +252,76 @@ impl Interpreter {
     /// `redo` — reapply the change most recently undone.
     fn op_redo(&mut self) -> Result<String> {
         match self.redo_stack.pop() {
-            Some((scene, history)) => {
+            Some((scene, history, vars)) => {
                 self.undo_stack.push((
                     std::mem::replace(&mut self.scene, scene),
                     std::mem::take(&mut self.history),
+                    std::mem::replace(&mut self.vars, vars),
                 ));
                 self.history = history;
                 Ok("redid change".into())
             }
             None => Err(CadError::Arg("nothing to redo".into())),
         }
+    }
+
+    // ---- variables ---------------------------------------------------------
+
+    /// `set <name> <expr>` — define/update a numeric variable. The value is an
+    /// expression evaluated against the current variables, so `set d $w/2`
+    /// works. Recorded in history (ordered before its uses) and snapshotted for
+    /// undo, so `save` round-trips the parametric definition.
+    fn op_set(&mut self, tokens: &[String], raw: &str) -> Result<String> {
+        let name = tokens
+            .get(1)
+            .ok_or_else(|| CadError::Arg("usage: set <name> <expr>".into()))?;
+        if !is_var_name(name) {
+            return Err(CadError::Arg(format!(
+                "'{name}' is not a valid variable name (letters, digits, `_`; not starting with a digit)"
+            )));
+        }
+        if tokens.len() < 3 {
+            return Err(CadError::Arg(format!(
+                "set {name} needs a value: set {name} <expr>"
+            )));
+        }
+        let src = tokens[2..].join(" ");
+        let val = expr::eval(&src, &self.vars)?;
+        let snap = (self.scene.clone(), self.history.clone(), self.vars.clone());
+        self.vars.insert(name.clone(), val);
+        self.push_undo(snap);
+        self.history.push(raw.trim().to_string());
+        Ok(format!("{name} = {}", expr::fmt_num(val)))
+    }
+
+    /// `unset <name>` — remove a variable.
+    fn op_unset(&mut self, tokens: &[String], raw: &str) -> Result<String> {
+        let name = tokens
+            .get(1)
+            .ok_or_else(|| CadError::Arg("usage: unset <name>".into()))?;
+        if !self.vars.contains_key(name) {
+            return Err(CadError::NotFound(format!("variable `{name}`")));
+        }
+        let snap = (self.scene.clone(), self.history.clone(), self.vars.clone());
+        self.vars.remove(name);
+        self.push_undo(snap);
+        self.history.push(raw.trim().to_string());
+        Ok(format!("unset {name}"))
+    }
+
+    /// `vars` — list current variables (read-only; not recorded).
+    fn list_vars(&self) -> String {
+        if self.vars.is_empty() {
+            return "no variables set (try `set w 40`)".into();
+        }
+        let mut names: Vec<&String> = self.vars.keys().collect();
+        names.sort();
+        let mut out = String::new();
+        for n in names {
+            out.push_str(&format!("{n} = {}\n", expr::fmt_num(self.vars[n])));
+        }
+        out.pop();
+        out
     }
 
     // ---- 2D creators -------------------------------------------------------
@@ -1362,6 +1453,71 @@ impl Default for Interpreter {
 }
 
 /// Substitute `${key}` / `${key:default}` placeholders in a script-skill body.
+/// Is `s` a valid variable name? Letters/digits/`_`, not starting with a digit.
+fn is_var_name(s: &str) -> bool {
+    let mut cs = s.chars();
+    match cs.next() {
+        Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
+        _ => return false,
+    }
+    cs.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+/// Expand `$var` / `${expr}` in each argument token against `vars`.
+fn expand_tokens(tokens: &[String], vars: &HashMap<String, f64>) -> Result<Vec<String>> {
+    tokens.iter().map(|t| expand_token(t, vars)).collect()
+}
+
+/// Expand one token. A token with no `$` is returned verbatim. For a
+/// `key=value` token only the value is expanded (keys never contain `$`).
+fn expand_token(tok: &str, vars: &HashMap<String, f64>) -> Result<String> {
+    if !tok.contains('$') {
+        return Ok(tok.to_string());
+    }
+    if let Some((k, v)) = tok.split_once('=') {
+        if !v.contains('$') {
+            return Ok(tok.to_string());
+        }
+        return Ok(format!("{k}={}", expand_value(v, vars)?));
+    }
+    expand_value(tok, vars)
+}
+
+/// Expand a value string: first splice any `${expr}` occurrences into the
+/// surrounding text (interpolation, e.g. `out_${w}.svg`), then — if a bare
+/// `$name` expression remains — evaluate the whole string as a number.
+fn expand_value(s: &str, vars: &HashMap<String, f64>) -> Result<String> {
+    let interpolated = if s.contains("${") {
+        interpolate(s, vars)?
+    } else {
+        s.to_string()
+    };
+    if interpolated.contains('$') {
+        let n = expr::eval(&interpolated, vars)?;
+        Ok(expr::fmt_num(n))
+    } else {
+        Ok(interpolated)
+    }
+}
+
+/// Replace every `${expr}` in `s` with the formatted value of `expr`.
+fn interpolate(s: &str, vars: &HashMap<String, f64>) -> Result<String> {
+    let mut out = String::new();
+    let mut rest = s;
+    while let Some(pos) = rest.find("${") {
+        out.push_str(&rest[..pos]);
+        let after = &rest[pos + 2..];
+        let end = after
+            .find('}')
+            .ok_or_else(|| CadError::Parse("unterminated ${...} expression".into()))?;
+        let n = expr::eval(&after[..end], vars)?;
+        out.push_str(&expr::fmt_num(n));
+        rest = &after[end + 1..];
+    }
+    out.push_str(rest);
+    Ok(out)
+}
+
 fn substitute(template: &str, args: &Args) -> Result<String> {
     let mut out = String::new();
     let mut rest = template;
