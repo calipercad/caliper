@@ -62,6 +62,45 @@ cargo run -p cad-cli -- help    # language reference
 cargo run -p cad-cli -- run examples/print-gear.cad
 ```
 
+## Testing
+
+The whole suite is `std`-only and offline — no network, no fixtures, no API key
+(the AI path is exercised through a mock transport):
+
+```sh
+cargo test --workspace          # unit + per-phase integration + property tests
+```
+
+This runs the kernel/interpreter unit tests, the per-phase suites
+(`crates/cad-core/tests/phase1..16.rs`), the doctest, and the randomized
+**property tests** (`tests/properties.rs` — a seeded PRNG checks triangulation,
+boolean, and CSG invariants across many cases, deterministically).
+
+The same three gates CI enforces, which you can run locally before a commit:
+
+```sh
+cargo fmt --all --check                               # formatting
+cargo clippy --all-targets --all-features -- -D warnings   # lints (warnings = error)
+cargo test --workspace                                # tests
+```
+
+Run a single phase or a filter while iterating:
+
+```sh
+cargo test -p cad-core --test phase16                 # one phase suite
+cargo test -p cad-core sketch                         # tests matching "sketch"
+```
+
+Smoke-test every example end to end (each should run without error):
+
+```sh
+for f in examples/*.cad; do cargo run -q -p cad-cli -- run "$f" >/dev/null && echo "ok $f"; done
+```
+
+Add a test with every change: geometry math gets a unit test in its module, and
+each new command gets an end-to-end interpreter test in the matching
+`tests/phaseN.rs` — see [`docs/DESIGN.md`](docs/DESIGN.md).
+
 ## Quick start
 
 Interactive shell:
