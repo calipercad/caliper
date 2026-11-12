@@ -209,8 +209,9 @@ The `ai` command shells out to `curl` and `jq` (both must be on `PATH`) and
 calls the Anthropic Messages API.
 
 ```sh
-export ANTHROPIC_API_KEY=sk-ant-...     # required
-export CAD_AI_MODEL=claude-sonnet-5     # optional; this is the default
+export ANTHROPIC_API_KEY=sk-ant-...        # required
+export CAD_AI_MODEL=claude-sonnet-5-5      # optional; this is the default
+export ANTHROPIC_BASE_URL=https://proxy…   # optional; override the API host
 ```
 
 `ai <describe it>` runs an **inspect→run→repair loop**: the model emits

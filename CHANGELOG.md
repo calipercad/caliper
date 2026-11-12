@@ -3,6 +3,17 @@
 All notable changes to cad-assist are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## [1.6.1] — AI error-reporting fix
+
+- **Fixed:** a failed/unexpected AI API response crashed with a cryptic
+  `jq: error … Cannot index string with string "message"` instead of a useful
+  message. The response filter now tolerates any shape (`?`-guarded) and the
+  error path reports the real message — `API error: <message>` for Anthropic
+  (`.error.message`), bare `{"error":"…"}`, or `.message` shapes, and the raw
+  response (with a hint to check `ANTHROPIC_BASE_URL`/model) for non-JSON.
+- **Changed:** default `CAD_AI_MODEL` is now `claude-sonnet-5-5` (a current model
+  id); the old `claude-sonnet-5` was stale. Override with `CAD_AI_MODEL`.
+
 ## [1.6.0] — Sketch arcs, circles & curve constraints
 
 The constraint sketcher (v1.5) grows curved geometry. Still std-only.

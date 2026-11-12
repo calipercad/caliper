@@ -5,7 +5,7 @@
 //! in tests.
 //!
 //! Set `ANTHROPIC_API_KEY` in the environment. The model can be overridden with
-//! `CAD_AI_MODEL` (default: `claude-sonnet-5`), and the API host with
+//! `CAD_AI_MODEL` (default: `claude-sonnet-5-5`), and the API host with
 //! `ANTHROPIC_BASE_URL` (optional; default: `https://api.anthropic.com`).
 
 pub mod agent;
@@ -17,7 +17,7 @@ use std::collections::VecDeque;
 use std::io::Write;
 use std::process::{Command, Stdio};
 
-const DEFAULT_MODEL: &str = "claude-sonnet-5";
+const DEFAULT_MODEL: &str = "claude-sonnet-5-5";
 const DEFAULT_BASE_URL: &str = "https://api.anthropic.com";
 
 /// The Messages API endpoint. The host defaults to [`DEFAULT_BASE_URL`] but can
@@ -123,14 +123,35 @@ impl Transport for CurlTransport {
         }
 
         let response = String::from_utf8_lossy(&output.stdout).to_string();
-        let text = jq(&response, ".content[0].text // .error.message // empty")?;
-        if text.trim().is_empty() {
-            return Err(CadError::Ai(format!(
-                "empty/unrecognized API response: {}",
-                response.chars().take(300).collect::<String>()
-            )));
+
+        // Success: the assistant text. The `?` after each field suppresses jq's
+        // "cannot index" errors, so an unexpected response shape (e.g. a proxy
+        // that returns `{"error":"..."}` where `.error` is a *string*) never
+        // crashes jq — we fall through to error handling instead.
+        if let Ok(text) = jq(&response, ".content[0].text? // empty") {
+            if !text.trim().is_empty() {
+                return Ok(strip_fences(&text));
+            }
         }
-        Ok(strip_fences(&text))
+
+        // Otherwise surface an API/proxy error message if the response carries
+        // one, across the common shapes: Anthropic (`.error.message`), a bare
+        // `{"error":"..."}` string, or a top-level `.message`.
+        if let Ok(err) = jq(
+            &response,
+            ".error.message? // (.error | strings) // .message? // empty",
+        ) {
+            if !err.trim().is_empty() {
+                return Err(CadError::Ai(format!("API error: {}", err.trim())));
+            }
+        }
+
+        // Non-JSON or an unrecognized shape: show the raw response so the user
+        // can see what the host/proxy actually returned.
+        Err(CadError::Ai(format!(
+            "unrecognized API response (check ANTHROPIC_BASE_URL and the model): {}",
+            response.chars().take(400).collect::<String>().trim()
+        )))
     }
 }
 
