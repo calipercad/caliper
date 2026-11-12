@@ -1,4 +1,4 @@
-# cad-assist
+# Caliper
 
 A terminal-native, AI-assisted **parametric CAD toolkit** written in pure Rust.
 No GUI, no cloud, no build-time downloads — it compiles offline and stays
@@ -9,7 +9,7 @@ cutters, pen plotters, CNC, and 3D printers**.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  cad-assist — terminal CAD with AI + parametric skills        │
+│  Caliper — terminal CAD with AI + parametric skills        │
 │  type `help` for the language, `skills` to list generators    │
 │  `ai <describe it>` to design with Claude · `quit` to exit     │
 └─────────────────────────────────────────────────────────────┘
@@ -48,7 +48,7 @@ cutters, pen plotters, CNC, and 3D printers**.
 Requires a recent stable Rust toolchain.
 
 ```sh
-git clone <your-fork> cad-assist && cd cad-assist
+git clone <your-fork> Caliper && cd Caliper
 cargo install --path crates/cad-cli    # installs the `cad` binary to ~/.cargo/bin
 cad                                     # start the interactive shell
 ```
@@ -173,7 +173,7 @@ The full gallery with parameters and previews is in [docs/SKILLS.md](docs/SKILLS
 Add your own, no recompile needed — manage script-skills with `cad plugin`:
 
 ```sh
-cad plugin new coaster     # scaffold ~/.cad-assist/skills/coaster.cad
+cad plugin new coaster     # scaffold ~/.caliper/skills/coaster.cad
 cad plugin list            # built-ins + your plugins
 ```
 
@@ -206,7 +206,7 @@ where each panel is its own cut path. SVG/DXF group entities onto layers by
 built-in single-stroke font as open paths — ideal for pen plotters, drag
 engravers, and laser scoring. `font=outline path=<font.ttf>` parses a TrueType
 font into **filled, cut-out letters** (holes and all) for through-cuts — signage,
-stencils, inlays. No font ships with cad-assist; point `path=` at one you have:
+stencils, inlays. No font ships with Caliper; point `path=` at one you have:
 
 ```
 text "OPEN" font=outline path=/System/Library/Fonts/Supplemental/Arial.ttf h=40 role=cut
@@ -228,7 +228,7 @@ export ANTHROPIC_BASE_URL=https://proxy…   # optional; override the API host
 ```
 
 `ai <describe it>` runs an **inspect→run→repair loop**: the model emits
-commands, cad-assist runs them and feeds back the render + entity list (and any
+commands, Caliper runs them and feeds back the render + entity list (and any
 error, for the model to fix), until the design matches or a step budget is hit.
 `ai edit "<change>"` refines the current scene; `ai fix` repairs the last run.
 The system prompt carries the language reference plus a live skills digest.
@@ -293,6 +293,22 @@ Still zero-dependency, `std`-only. Candidate next steps: arcs/circles + tangent/
 radius constraints in the sketcher, loft & sweep-along-path, PDF vector export,
 and (relaxing std-only) a WASM/dylib plugin host + coverage-guided fuzzing.
 
+## Contributing
+
+Contributions welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md). Caliper keeps
+a hard line: the kernel is `std`-only with **zero third-party crates**, external
+programs only at the edges (`curl`/`jq`/`stty`). All PRs run `cargo test`,
+`cargo fmt --check`, and `cargo clippy -D warnings`, and sign off commits
+(`git commit -s`) under the [CLA](CLA.md) + DCO.
+
 ## License
 
-MIT.
+Caliper is **open core**. The code in this repository is licensed under the
+**Apache License 2.0** ([`LICENSE`](LICENSE)) — free to use, modify, self-host,
+and redistribute, including commercially. Premium and hosted features
+("Caliper Cloud", commercial editions) may be offered separately on top; the
+[CLA](CLA.md) is what makes that dual distribution possible. See
+[`LICENSING.md`](LICENSING.md) for the full model.
+
+> The licensing files are standard scaffolding, **not legal advice** — have a
+> lawyer review before launching a commercial/dual-licensing program.

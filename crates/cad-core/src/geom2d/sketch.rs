@@ -2,7 +2,7 @@
 //! geometric constraints, solved numerically into concrete coordinates and
 //! emitted as a [`Shape`].
 //!
-//! This turns cad-assist into a constraint-driven sketcher — "these two edges
+//! This turns Caliper into a constraint-driven sketcher — "these two edges
 //! are equal, this corner is a right angle, that side is 40mm; now find the
 //! geometry." The solver is a std-only Gauss–Newton / Levenberg–Marquardt
 //! iteration over a numeric Jacobian, with a small in-tree dense linear solve;

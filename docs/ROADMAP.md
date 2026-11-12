@@ -1,6 +1,6 @@
-# cad-assist — Roadmap
+# Caliper — Roadmap
 
-A **spread-out, checkpointed plan** for growing cad-assist from a solid v0.1
+A **spread-out, checkpointed plan** for growing Caliper from a solid v0.1
 foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
 
 ## How to use this roadmap
@@ -224,7 +224,7 @@ center distance ≈ r1+r2; `concentric`+`equal` tie centers/radii; a half-disk
 
 ## Phase 17 — UX overhaul ✅ (v1.7)
 
-**Objective.** Make cad-assist easier to pick up — without adding a crate.
+**Objective.** Make Caliper easier to pick up — without adding a crate.
 
 **Delivered.** A live-preview **TUI** (`cad tui`) with arrow-key orbit + a render
 pane that updates as you type, done std-only via `stty` raw mode + ANSI (a guard
@@ -241,6 +241,30 @@ summaries and one final render instead of raw prose + repeated renders.
 (`decode_key`/`compose_frame`), and quieter-transcript tests; `new box` scaffolds
 a runnable file; a typo suggests the fix; `cad tui` opens a live view and
 restores the terminal on quit.
+
+---
+
+## Phase 18 — Caliper: open-core licensing & brand ✅ (v1.8)
+
+**Objective.** Turn the toolkit into a project a business can be built around:
+one brand, a clear license story, and the legal scaffolding for premium offerings
+on top of an open-source core.
+
+**Delivered.** Rebranded all user-facing "cad-assist" strings to **Caliper**
+(the `cad` command and `cad-core`/`cad-cli` crate names unchanged). Per-user data
+moved to `~/.caliper/` with automatic fallback to a pre-existing `~/.cad-assist/`.
+Relicensed MIT → **Apache-2.0** (`LICENSE`, `NOTICE`) for its patent grant and
+trademark handling, and added a contributor `CLA.md`, `CONTRIBUTING.md`, and
+`LICENSING.md` describing the open-core model (free Apache-2.0 core; paid
+hosted/commercial "Caliper Cloud" on top). No kernel/geometry changes.
+
+**Scope.** Brand + legal only; `std`-only, zero crates unchanged. Not legal
+advice — a lawyer reviews before a commercial launch. The GitHub org move
+(`calipercad/caliper`) is a separate, user-gated step.
+
+**Checkpoint (met).** Zero remaining `cad-assist` strings except crate/command
+identifiers; `cargo test`/`fmt`/`clippy` green; existing `~/.cad-assist` skills
+still load.
 
 ---
 
@@ -514,7 +538,7 @@ testable offline via a transport trait so CI never hits the network.
   `geom2d`/`geom3d` readers. Enables "edit this existing cut file."
 - **Editing UX.** `undo`/`redo` (snapshot or command-inverse stack), REPL
   tab-completion for commands/skills/entity names, `watch <file.cad>` to
-  re-render on save, a `~/.cad-assist/config` for defaults (units, seg, render
+  re-render on save, a `~/.caliper/config` for defaults (units, seg, render
   size), and error messages that suggest the nearest command/skill.
 - **Richer export.** Binary STL, 3MF, PDF (vector) for print shops, and G2/G3
   arc output in G-code for smoother CNC/plot paths.
@@ -522,7 +546,7 @@ testable offline via a transport trait so CI never hits the network.
 **Work items.**
 - [x] SVG/DXF/STL (ASCII+binary) importers + `import` command (new `import/`).
 - [x] `undo`/`redo`: `(scene, history)` snapshot stack.
-- [x] `watch` mode (CLI, mtime poll) + `~/.cad-assist/config.cad` at startup.
+- [x] `watch` mode (CLI, mtime poll) + `~/.caliper/config.cad` at startup.
 - [x] Binary STL export + G2/G3 arcs in G-code.
 - [~] REPL tab-completion, 3MF, PDF — **deferred** (real completion needs
       raw-terminal/line-editor crates and 3MF a ZIP container, both at odds with

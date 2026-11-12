@@ -6,7 +6,7 @@ use std::process::ExitCode;
 
 const BANNER: &str = "\
 ┌─────────────────────────────────────────────────────────────┐
-│  cad-assist — terminal CAD with AI + parametric skills        │
+│  Caliper — terminal CAD with AI + parametric skills        │
 └─────────────────────────────────────────────────────────────┘
   try:  box 40 40 20          a solid, then `render`
         skill gear teeth=24   a parametric gear

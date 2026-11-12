@@ -1,10 +1,10 @@
-# cad-assist — Skill library
+# Caliper — Skill library
 
 **Skills** are named parametric generators: one line builds a complete part from
 a handful of dimensions. Invoke with `skill <name> [key=value ...]`; every
 parameter has a sensible default, so a bare `skill <name>` always produces
 something. Run `skills` in the REPL for this list with live usage, and add your
-own as `.cad` files in `~/.cad-assist/skills/` (no code needed).
+own as `.cad` files in `~/.caliper/skills/` (no code needed).
 
 All dimensions are in the document's current units (`units mm|cm|in`). 2D skills
 emit cut/score/engrave on separate layers (see [DESIGN](DESIGN.md)); mechanical

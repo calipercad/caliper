@@ -1,6 +1,6 @@
 //! # cad-core
 //!
-//! The engine behind `cad-assist`: a terminal-native, AI-assisted parametric
+//! The engine behind `Caliper`: a terminal-native, AI-assisted parametric
 //! CAD toolkit. Pure `std` — no external crates — so it builds offline and
 //! stays auditable.
 //!

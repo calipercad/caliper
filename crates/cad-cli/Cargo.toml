@@ -3,7 +3,7 @@ name = "cad-cli"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Terminal front-end (REPL + script runner) for cad-assist"
+description = "Terminal front-end (REPL + script runner) for Caliper"
 
 [[bin]]
 name = "cad"

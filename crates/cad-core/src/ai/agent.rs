@@ -38,7 +38,7 @@ pub fn run_agent(
     let system = build_system(interp);
 
     let seed = match mode {
-        AgentMode::Create => format!("Request: {task}\nBuild it with cad-assist commands."),
+        AgentMode::Create => format!("Request: {task}\nBuild it with Caliper commands."),
         AgentMode::Edit => format!(
             "The current scene is:\n{}\n\nChange requested: {task}\nApply it.",
             interp.exec_line("list").unwrap_or_default()
@@ -195,8 +195,8 @@ fn build_system(interp: &Interpreter) -> String {
         ));
     }
     format!(
-        "You are an expert CAD designer driving `cad-assist` in an iterative loop.\n\
-         Each turn, reply with ONLY cad-assist commands, ONE PER LINE. No prose, no \
+        "You are an expert CAD designer driving `Caliper` in an iterative loop.\n\
+         Each turn, reply with ONLY Caliper commands, ONE PER LINE. No prose, no \
          explanation, no markdown fences, no comments — any non-command line is ignored.\n\
          After you reply the commands run; you then receive the entity list and a render.\n\
          Emit more commands to fix or extend the design. When it fully matches the request, \

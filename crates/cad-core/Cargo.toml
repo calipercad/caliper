@@ -3,7 +3,7 @@ name = "cad-core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Geometry kernel, parametric skills, exporters, renderer and AI bridge for cad-assist"
+description = "Geometry kernel, parametric skills, exporters, renderer and AI bridge for Caliper"
 
 [lib]
 name = "cad_core"

@@ -1,4 +1,4 @@
-//! AI bridge. Turns natural language into cad-assist script via the Claude
+//! AI bridge. Turns natural language into Caliper script via the Claude
 //! Messages API. To stay dependency-free we shell out to `curl` (POST) and
 //! `jq` (parse) — both ubiquitous on macOS/Linux — behind a [`Transport`] trait
 //! so the copilot loop ([`agent`]) can be driven offline by a [`MockTransport`]
@@ -204,8 +204,8 @@ pub fn generate(request: &str) -> Result<String> {
 /// System prompt for the legacy one-shot [`generate`].
 fn one_shot_system_prompt() -> String {
     format!(
-        "You are an expert CAD designer driving `cad-assist`, a terminal CAD tool.\n\
-         Translate the user's request into a cad-assist script.\n\
+        "You are an expert CAD designer driving `Caliper`, a terminal CAD tool.\n\
+         Translate the user's request into a Caliper script.\n\
          Output ONLY script lines — no prose, no markdown fences, no explanation.\n\
          Prefer parametric `skill` commands when one fits. Give entities clear names.\n\
          End with a `render` line so the user sees the result.\n\n\

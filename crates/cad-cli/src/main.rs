@@ -1,4 +1,4 @@
-//! `cad` — the cad-assist command-line front end.
+//! `cad` — the Caliper command-line front end.
 //!
 //! Usage:
 //!   cad                     start the interactive shell (REPL)
@@ -9,7 +9,7 @@
 //!   cad new <name> [kind]   scaffold a starter script (kind: gear|box|enclosure|sketch|washer|blank)
 //!   cad tui                 live-preview interactive mode
 //!   cad tutorial            a 60-second guided tour
-//!   cad plugin list|new|add|remove   manage ~/.cad-assist/skills plugins
+//!   cad plugin list|new|add|remove   manage ~/.caliper/skills plugins
 //!   cad skills              list available parametric skills
 //!   cad help                print the language reference
 //!   cad version
@@ -39,7 +39,7 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         "version" | "-V" | "--version" => {
-            println!("cad-assist {}", env!("CARGO_PKG_VERSION"));
+            println!("Caliper {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
         }
         "skills" => {
@@ -189,7 +189,7 @@ fn watch_file(path: &str) -> ExitCode {
 }
 
 /// `cad plugin list|new|add|remove` — manage script-skills (`.cad` plugins) in
-/// `~/.cad-assist/skills/`. A script-skill is runnable as `skill <name>` and
+/// `~/.caliper/skills/`. A script-skill is runnable as `skill <name>` and
 /// shows up in `skills` with no recompile.
 fn plugin(args: &[String]) -> ExitCode {
     let dir = match Interpreter::new().skill_dir() {
@@ -221,7 +221,7 @@ fn plugin(args: &[String]) -> ExitCode {
                 return ExitCode::FAILURE;
             }
             let body = format!(
-                "# {name} — a cad-assist script-skill (plugin)\n\
+                "# {name} — a Caliper script-skill (plugin)\n\
                  # invoke:  skill {name} size=40\n\
                  # ${{key:default}} placeholders are filled from `key=value` args.\n\
                  rect ${{size:40}} ${{size:40}} rx=4 name={name}\n\
@@ -378,7 +378,7 @@ fn scaffold(name: &str, kind: &str) -> ExitCode {
         eprintln!("{path} already exists");
         return ExitCode::FAILURE;
     }
-    let body = format!("# {name}.cad — cad-assist design ({kind} template)\n{tpl}");
+    let body = format!("# {name}.cad — Caliper design ({kind} template)\n{tpl}");
     match std::fs::write(&path, body) {
         Ok(_) => {
             println!("created {path} ({kind})\n  run it with:  cad run {path}");

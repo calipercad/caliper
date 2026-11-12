@@ -3,13 +3,13 @@ resolver = "2"
 members = ["crates/cad-core", "crates/cad-cli"]
 
 [workspace.package]
-version = "1.7.1"
+version = "1.8.0"
 edition = "2021"
-license = "MIT"
-authors = ["cad-assist"]
+license = "Apache-2.0"
+authors = ["Caliper contributors"]
 description = "A terminal-native, AI-assisted parametric CAD toolkit"
-repository = "https://github.com/cad-assist/cad-assist"
-homepage = "https://github.com/cad-assist/cad-assist"
+repository = "https://github.com/calipercad/caliper"
+homepage = "https://github.com/calipercad/caliper"
 readme = "README.md"
 keywords = ["cad", "geometry", "cnc", "laser", "3d-printing"]
 categories = ["command-line-utilities", "graphics", "mathematics"]

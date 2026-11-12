@@ -1,7 +1,27 @@
 # Changelog
 
-All notable changes to cad-assist are recorded here. Versions map to roadmap
+All notable changes to Caliper are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
+
+## [1.8.0] — Caliper: open-core licensing & brand
+
+The toolkit is now **Caliper**. This release is about making it a real project
+you can build a business around, not new geometry.
+
+- **Rebrand:** every user-facing "cad-assist" string is now "Caliper" — README,
+  docs, the landing page, the REPL banner, AI prompts, export headers, and the
+  tutorial. The `cad` CLI command and the `cad-core`/`cad-cli` crate names are
+  unchanged.
+- **Config dir:** per-user data now lives in `~/.caliper/` (skills, config.cad).
+  A pre-existing `~/.cad-assist/` is still read automatically, so upgrades need
+  no migration.
+- **Open-core licensing:** relicensed from MIT to **Apache-2.0** (added patent
+  grant + trademark handling). Added `LICENSE`, `NOTICE`, a contributor
+  `CLA.md`, `CONTRIBUTING.md`, and `LICENSING.md` documenting the open-core
+  model (free Apache-2.0 core; premium/hosted "Caliper Cloud" on top). These are
+  standard scaffolding, not legal advice — a lawyer should review before a
+  commercial launch.
+- No kernel/geometry changes; `std`-only, zero crates unchanged.
 
 ## [1.7.1] — TUI fixes
 
@@ -15,7 +35,7 @@ phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
 ## [1.7.0] — UX overhaul: templates, quieter AI, friendly REPL, live TUI
 
-Making cad-assist easier to pick up. The kernel stays std-only; the CLI stays
+Making Caliper easier to pick up. The kernel stays std-only; the CLI stays
 zero-crate (the TUI uses `stty`, like `curl`/`jq`).
 
 ### Added
@@ -96,7 +116,7 @@ Documentation and example refresh; no code or behavior changes.
 
 ## [1.5.0] — 2D constraint sketch solver
 
-cad-assist becomes a constraint-driven sketcher: build a sketch from points and
+Caliper becomes a constraint-driven sketcher: build a sketch from points and
 line segments, relate them geometrically, and `solve` finds the exact geometry —
 the biggest "real CAD" addition since the kernel. Still std-only (a small
 in-tree Gauss–Newton solver, no dependencies).
@@ -234,13 +254,13 @@ only on a `$`).
 
 ## [1.0.0] — Extensibility & release
 
-The roadmap is complete. This release makes cad-assist extensible, adds
+The roadmap is complete. This release makes Caliper extensible, adds
 correctness infrastructure and CI, and polishes packaging — all while keeping
 the kernel std-only and zero-dependency.
 
 ### Added
 - **Plugin surface**: `cad plugin list|new|add|remove` manages script-skills in
-  `~/.cad-assist/skills/` (a `.cad` with `${param:default}` slots is runnable as
+  `~/.caliper/skills/` (a `.cad` with `${param:default}` slots is runnable as
   `skill <name>` and listed in `skills`, no recompile). `Interpreter::skill_dir`
   exposes the directory. Full model — script-skills and native `Skill`-trait
   skills — documented in `docs/PLUGINS.md`.
@@ -253,7 +273,7 @@ the kernel std-only and zero-dependency.
   build, and test on stable; the crate is now clippy-clean.
 - **Packaging**: workspace metadata (`repository`/`readme`/`keywords`/
   `categories`/`homepage`), `cargo install --path crates/cad-cli`, a README
-  refresh, and a Homebrew formula template (`dist/cad-assist.rb`).
+  refresh, and a Homebrew formula template (`dist/Caliper.rb`).
 
 ### Deferred (post-1.0, to stay zero-dependency)
 - A WASM/dylib plugin host, coverage-guided `cargo-fuzz`, and a generated docs
@@ -261,13 +281,13 @@ the kernel std-only and zero-dependency.
 
 ## [0.8.0] — Interop & UX
 
-cad-assist can now read files back, undo, watch, and emit richer output —
+Caliper can now read files back, undo, watch, and emit richer output —
 rounding out the "edit this existing cut file" workflow.
 
 ### Added
 - **Import** (new `import` module, `import <file>` command): SVG (`<circle>`,
   `<path M/L/Z>`), DXF (`CIRCLE`/`ARC`/`LWPOLYLINE`), and STL (ASCII + binary).
-  Round-trips cad-assist's own output — DXF is exact; SVG inverts the writer's
+  Round-trips Caliper's own output — DXF is exact; SVG inverts the writer's
   Y-flip via the viewBox; STL welds repeated vertices into a `Mesh`.
 - **undo / redo**: a `(scene, history)` snapshot stack taken before each
   scene-modifying command (bounded depth); `undo`/`redo` commands.
@@ -276,7 +296,7 @@ rounding out the "edit this existing cut file" workflow.
 - **Richer export**: binary STL (`export stl … binary`) and true `G2`/`G3` arc
   moves in G-code for `Circle`/`Arc` contours (smoother tool-paths, smaller
   files); arcs survive a DXF round-trip.
-- **Startup config**: `~/.cad-assist/config.cad` runs at launch (units/defaults).
+- **Startup config**: `~/.caliper/config.cad` runs at launch (units/defaults).
 - **Tests**: `crates/cad-core/tests/phase7.rs` — SVG/DXF/STL (ascii+binary)
   round-trips, binary-STL byte size, undo/redo, and G-code arcs.
 
@@ -296,7 +316,7 @@ generate-and-run, and the whole loop is testable offline.
   public `MockTransport` that returns scripted replies and records what it saw —
   so the copilot is driven fully offline in tests (no network, no API key).
 - **Copilot loop** (`ai::agent::run_agent`): each turn the model emits
-  cad-assist commands (or `DONE`); the loop runs them, and on an error **rolls
+  Caliper commands (or `DONE`); the loop runs them, and on an error **rolls
   the turn back atomically** (scene + history) and feeds the exact error back for
   a fix; on success it feeds back the entity list + render. Bounded by a step
   budget; converges early on `DONE`. The system prompt now includes a live
@@ -464,7 +484,7 @@ First working release: a complete, tested vertical slice of the tool.
   a reproducible command `history` behind `save`/`load`.
 - **Parametric skills**: `gear` (involute), `boxjoint` (finger-jointed panels),
   `honeycomb`, `washer`, `standoff`; plus user **script-skills** loaded from
-  `~/.cad-assist/skills/<name>.cad` with `${param}` substitution.
+  `~/.caliper/skills/<name>.cad` with `${param}` substitution.
 - **Exporters**: SVG (real-mm, Cricut/laser), DXF (AutoCAD `AC1015`), G-code
   (pen/CNC), STL and OBJ (3D printing/interchange).
 - **Rendering**: Unicode braille canvas; 2D rasterisation and 3D wireframes using

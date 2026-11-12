@@ -1,12 +1,12 @@
-# Extending cad-assist
+# Extending Caliper
 
-cad-assist is extensible two ways, both in keeping with its std-only,
+Caliper is extensible two ways, both in keeping with its std-only,
 zero-dependency design. The library of parametric generators (`skills`) is meant
 to grow far faster than the core.
 
 ## 1. Script-skills (no code)
 
-A **script-skill** is a `.cad` file dropped in `~/.cad-assist/skills/`. Its name
+A **script-skill** is a `.cad` file dropped in `~/.caliper/skills/`. Its name
 becomes a `skill <name>` command, it shows up in `skills`, and it needs no
 recompile — this is the plugin mechanism for the toolkit.
 
@@ -17,13 +17,13 @@ default is an error).
 Manage them from the CLI:
 
 ```
-cad plugin new coaster          # scaffold ~/.cad-assist/skills/coaster.cad
+cad plugin new coaster          # scaffold ~/.caliper/skills/coaster.cad
 cad plugin add ./my-part.cad    # install an external script-skill
 cad plugin list                 # built-ins + your script-skills
 cad plugin remove coaster
 ```
 
-Example `~/.cad-assist/skills/coaster.cad`:
+Example `~/.caliper/skills/coaster.cad`:
 
 ```
 # coaster — a rounded tile with an engraved monogram

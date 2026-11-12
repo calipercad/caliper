@@ -1,4 +1,4 @@
-cad-assist script language
+Caliper script language
 ===========================
 One command per line. `#` or `;` begins a comment. Text in "double quotes"
 is one token. Options are key=value; bare numbers are positional. Angles are
@@ -108,7 +108,7 @@ SKILLS (parametric generators — run `skills` for the full list + usage)
   skill card [width=100] [height=70] [fold=left|top] [window=0]
   skill box_template [width=60] [depth=40] [height=30] [tab=10]
   skill living_hinge [width=80] [height=40] [slot=15] [gap=3] [rows=0]
-  skill <name> ...                                 also runs ~/.cad-assist/skills/<name>.cad
+  skill <name> ...                                 also runs ~/.caliper/skills/<name>.cad
 
 SCENE / INSPECTION
   units mm|cm|in         list          bbox [name]
@@ -142,7 +142,7 @@ FILES & AI
   import <file>          read an SVG / DXF / STL file into the scene
   undo                   revert the last scene change
   redo                   reapply an undone change
-  (CLI: `cad watch <file.cad>` re-renders on save; ~/.cad-assist/config.cad runs at startup)
+  (CLI: `cad watch <file.cad>` re-renders on save; ~/.caliper/config.cad runs at startup)
   ai <describe it>       Claude copilot: generate → run → inspect → repair loop
   ai edit "<change>"     refine the current scene
   ai fix                 repair the previous AI attempt

@@ -1,7 +1,7 @@
-# cad-assist — Design
+# Caliper — Design
 
 This document captures the **design principles** and the **current data model**
-of cad-assist. It is the baseline that every roadmap phase builds on; read it
+of Caliper. It is the baseline that every roadmap phase builds on; read it
 before making architectural changes, and update it when the model changes.
 
 ## Principles
@@ -33,7 +33,7 @@ before making architectural changes, and update it when the model changes.
 ## Crate layout
 
 ```
-cad-assist/                 workspace root (no package)
+Caliper/                 workspace root (no package)
 ├── crates/
 │   ├── cad-core/           the engine (library `cad_core`)
 │   │   └── src/
@@ -233,7 +233,7 @@ arcs; splines/ellipses are future work.
 ## Extensibility
 
 The extension mechanism is **script-skills**: a `.cad` file with
-`${key:default}` placeholders in `~/.cad-assist/skills/` becomes a `skill
+`${key:default}` placeholders in `~/.caliper/skills/` becomes a `skill
 <name>` command (managed by `cad plugin`). Native skills implement the `Skill`
 trait and register in `SkillRegistry::with_builtins`. Both are std-only and need
 no plugin host. See [PLUGINS.md](PLUGINS.md).

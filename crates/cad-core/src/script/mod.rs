@@ -1,4 +1,4 @@
-//! The cad-assist scripting language: a small, line-oriented command language
+//! The Caliper scripting language: a small, line-oriented command language
 //! interpreted against a [`Scene`]. One command per line; `#` starts a comment.
 //!
 //! The same interpreter powers script files (`cad run file.cad`), the REPL, and
@@ -120,7 +120,7 @@ impl Interpreter {
         self.user_skill_dir.as_deref()
     }
 
-    /// Run `~/.cad-assist/config.cad` if present (units, defaults). Best-effort;
+    /// Run `~/.caliper/config.cad` if present (units, defaults). Best-effort;
     /// errors are ignored and the config is not left on the undo stack.
     pub fn load_config(&mut self) -> Option<String> {
         let path = default_config_path()?;
@@ -1974,7 +1974,7 @@ impl Interpreter {
         let path = args
             .pos_str(0)
             .ok_or_else(|| CadError::Arg("usage: save <file.cad>".into()))?;
-        let mut text = String::from("# cad-assist script\n");
+        let mut text = String::from("# Caliper script\n");
         // Pin the document's current units once at the top; skip any recorded
         // `units` commands below so we never emit a duplicate or stale unit.
         text.push_str(&format!("units {}\n", self.scene.units.suffix()));
@@ -2142,16 +2142,28 @@ fn substitute(template: &str, args: &Args) -> Result<String> {
     Ok(out)
 }
 
-/// Default user skill directory: `~/.cad-assist/skills`.
-fn default_skill_dir() -> Option<PathBuf> {
-    let home = std::env::var_os("HOME")?;
-    Some(PathBuf::from(home).join(".cad-assist").join("skills"))
+/// Caliper's per-user data directory. Prefers `~/.caliper`, but falls back to a
+/// pre-existing `~/.cad-assist` (the pre-rebrand name) so upgrading users keep
+/// their skills and config without moving anything.
+fn user_dir() -> Option<PathBuf> {
+    let home = PathBuf::from(std::env::var_os("HOME")?);
+    let caliper = home.join(".caliper");
+    let legacy = home.join(".cad-assist");
+    if !caliper.exists() && legacy.exists() {
+        Some(legacy)
+    } else {
+        Some(caliper)
+    }
 }
 
-/// `~/.cad-assist/config.cad` — optional startup script (units, defaults).
+/// Default user skill directory: `~/.caliper/skills` (or the legacy dir's).
+fn default_skill_dir() -> Option<PathBuf> {
+    Some(user_dir()?.join("skills"))
+}
+
+/// `~/.caliper/config.cad` — optional startup script (units, defaults).
 fn default_config_path() -> Option<PathBuf> {
-    let home = std::env::var_os("HOME")?;
-    Some(PathBuf::from(home).join(".cad-assist").join("config.cad"))
+    Some(user_dir()?.join("config.cad"))
 }
 
 /// Every command keyword the interpreter understands — the canonical list, for
@@ -2268,7 +2280,7 @@ fn levenshtein(a: &str, b: &str) -> usize {
 
 /// A short guided walkthrough (the `tutorial` command / `cad tutorial`).
 const TUTORIAL: &str = "\
-cad-assist — 60-second tour
+Caliper — 60-second tour
 ───────────────────────────
 Everything is one command per line. Try these in order:
 

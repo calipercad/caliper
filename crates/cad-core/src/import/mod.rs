@@ -1,5 +1,5 @@
 //! File import: read SVG / DXF / STL back into the scene. Parsers are
-//! std-only and target the subset cad-assist itself writes (see `export/`), so
+//! std-only and target the subset Caliper itself writes (see `export/`), so
 //! a design round-trips: `export` then `import` preserves the geometry.
 //!
 //! Coordinates in exported files are in millimetres; on import they are divided
