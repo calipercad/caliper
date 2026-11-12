@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Crate-wide error type.
 
 use std::fmt;

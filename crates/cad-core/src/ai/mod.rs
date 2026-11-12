@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! AI bridge. Turns natural language into Caliper script via the Claude
 //! Messages API. To stay dependency-free we shell out to `curl` (POST) and
 //! `jq` (parse) — both ubiquitous on macOS/Linux — behind a [`Transport`] trait

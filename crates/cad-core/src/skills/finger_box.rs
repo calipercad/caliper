@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Finger-jointed box generator for laser cutters and CNC routers.
 //!
 //! Emits the flat panels of a box (bottom + four walls, optional lid) laid out

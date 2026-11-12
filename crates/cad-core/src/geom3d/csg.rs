@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Constructive solid geometry on triangle meshes — a BSP-tree boolean kernel
 //! (`union` / `difference` / `intersection`) plus a convex-limited `shell`.
 //!

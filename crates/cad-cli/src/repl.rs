@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Interactive shell. Reads one command per line and prints the result.
 
 use cad_core::script::Interpreter;

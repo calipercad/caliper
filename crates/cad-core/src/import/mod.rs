@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! File import: read SVG / DXF / STL back into the scene. Parsers are
 //! std-only and target the subset Caliper itself writes (see `export/`), so
 //! a design round-trips: `export` then `import` preserves the geometry.

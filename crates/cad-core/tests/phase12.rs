@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Phase 12 integration tests (roadmap v1.2): assemblies & BOM — the `part`
 //! label, the `assembly` alias (reusing group transforms), group-aware export,
 //! the `bom` report, and save round-tripping of the new attributes.

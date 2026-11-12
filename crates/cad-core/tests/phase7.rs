@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Phase 7 integration tests (roadmap v0.8): import round-trips, undo/redo,
 //! binary STL, and G2/G3 arc G-code. Driven through the interpreter + temp files.
 

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Phase 2 integration tests (blueprint/roadmap v0.3): single-stroke text and
 //! layered, role-colored SVG/DXF export. Driven through the public API.
 

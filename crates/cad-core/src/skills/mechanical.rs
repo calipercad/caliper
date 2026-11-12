@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Parametric mechanical-design skills: flanges, roller-chain sprockets,
 //! spur-gear racks, timing-belt pulleys and radial disc cams.
 //!

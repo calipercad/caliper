@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Phase 14 integration tests (roadmap v1.4): outline / stencil text — a minimal
 //! TrueType `glyf` parser turning a `.ttf` into FILLED, closed-contour glyphs.
 //!

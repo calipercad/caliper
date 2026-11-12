@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! A 2D geometric constraint sketcher: points + line segments related by
 //! geometric constraints, solved numerically into concrete coordinates and
 //! emitted as a [`Shape`].

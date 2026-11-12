@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! A compact **single-stroke** vector font for engraving / plotting / laser
 //! scoring, authored in-tree (no external font files, no dependencies —
 //! consistent with the crate's `std`-only, offline, auditable principle).

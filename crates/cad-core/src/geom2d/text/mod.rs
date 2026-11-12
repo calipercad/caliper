@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Single-stroke text for engraving, pen-plotting, and laser scoring.
 //!
 //! [`stroke_text`] lays out a string in the built-in single-stroke [`font`] and

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Basic G-code writer for pen plotters, drag-knife cutters and laser/CNC
 //! contour cutting. Traces each contour with the tool down, lifting between
 //! contours. Not a full CAM post — a clean, honest starting point.

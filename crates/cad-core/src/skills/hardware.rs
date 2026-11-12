@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Small mechanical hardware skills: washers and standoffs/spacers.
 
 use crate::args::Args;

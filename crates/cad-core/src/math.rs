@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Minimal linear-algebra kernel: 2D/3D vectors and a 4x4 affine transform.
 //!
 //! Everything here is `f64` and pure std. It is deliberately small — just what

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! 2D geometry: contours and shapes.
 //!
 //! All curved primitives are tessellated to polylines on construction so that

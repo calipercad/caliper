@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Phase 16 integration tests (roadmap v1.6): sketch circles, arcs, and curve
 //! constraints (radius / tangent / concentric / point-on / equal-radius),
 //! driven end-to-end through the interpreter. `circle`/`arc` route to the active

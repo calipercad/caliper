@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! 3D edge fillet & chamfer — round or bevel the sharp convex edges of a solid
 //! `Mesh`. This complements the 2D-profile workflow (fillet the profile, then
 //! `extrude`): it works on an existing solid, including the extrusion rims the

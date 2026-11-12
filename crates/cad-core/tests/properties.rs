@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Randomized property tests (std-only): a tiny seeded PRNG drives many cases
 //! through triangulate / boolean / CSG and checks the structural invariants.
 //! Deterministic (fixed seeds) so a failing case is reproducible — this is the

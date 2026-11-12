@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! # cad-core
 //!
 //! The engine behind `Caliper`: a terminal-native, AI-assisted parametric

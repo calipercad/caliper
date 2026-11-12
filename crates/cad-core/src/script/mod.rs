@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! The Caliper scripting language: a small, line-oriented command language
 //! interpreted against a [`Scene`]. One command per line; `#` starts a comment.
 //!

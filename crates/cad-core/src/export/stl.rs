@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! STL writers (ASCII + binary) for 3D printing / slicing. Units are millimetres.
 
 use crate::geom3d::Mesh;

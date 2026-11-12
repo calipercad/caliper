@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Phase 15 integration tests (roadmap v1.5): the 2D constraint sketch solver,
 //! driven end-to-end through the interpreter — build points + segments, add
 //! geometric constraints, `solve`, and emit a `Shape`. Mirrors the variables

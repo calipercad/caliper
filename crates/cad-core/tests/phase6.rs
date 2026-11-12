@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Phase 6 integration tests (roadmap v0.7): the AI copilot loop, driven fully
 //! offline by a scripted `MockTransport` — no network, no API key.
 

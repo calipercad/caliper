@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! The scene: a named collection of 2D and 3D entities plus document units.
 
 use crate::bbox::{Aabb2, Aabb3};

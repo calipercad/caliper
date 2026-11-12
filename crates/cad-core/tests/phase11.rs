@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Phase 11 integration tests (roadmap v1.2): measurement & analysis —
 //! `measure` (mass properties), `interfere` (clash detection), and `section`
 //! (mesh cross-section). Library helpers (`Shape::centroid`/`perimeter`,

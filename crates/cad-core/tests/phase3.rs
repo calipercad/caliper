@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Phase 3 integration tests (roadmap v0.4): BSP mesh CSG, shell, and the
 //! fillet-profile-then-extrude workflow for rounded 3D edges.
 

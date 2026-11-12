@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Exporters. 2D formats (SVG/DXF/G-code) consume [`Shape`]s; 3D formats
 //! (STL/OBJ) consume [`Mesh`]es. Coordinates are scaled from scene units to
 //! millimetres so downstream tools get real-world sizes.

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! SVG writer — the lingua franca for Cricut, Silhouette, laser cutters and
 //! vinyl plotters. Emits real millimetre dimensions with matching viewBox and
 //! one `<path>` per contour (fill:none, thin stroke = cut lines).

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Minimal TrueType (`glyf`) outline parser → **filled** letter [`Shape`]s for
 //! through-cuts, the companion to the single-stroke [`super::stroke_text`].
 //!

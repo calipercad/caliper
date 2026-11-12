@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Axis-aligned bounding boxes in 2D and 3D.
 
 use crate::math::{Vec2, Vec3};

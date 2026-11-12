@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! `cad tui` — a full-screen, live-preview interactive mode.
 //!
 //! Zero crates: raw mode is toggled by shelling `stty` (an external program at

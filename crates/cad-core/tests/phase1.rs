@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Phase 1 integration tests (blueprint §10): robust 2D booleans, holed
 //! extrusion + manifold verification, fillet/chamfer, and exporter fidelity.
 //!

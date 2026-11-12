@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Phase 9 integration tests (roadmap v1.1): parametric variables & expressions
 //! driven end-to-end through the interpreter. The evaluator's own unit tests
 //! live in `src/script/expr.rs`; these exercise the wiring: `set`/`unset`/`vars`,

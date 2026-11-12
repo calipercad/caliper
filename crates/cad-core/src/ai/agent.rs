@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! The copilot loop: generate commands → run them → inspect the result → feed
 //! back errors/state → refine, until the model says `DONE` or a step budget is
 //! hit. Driven by any [`Transport`], so it runs fully offline in tests via

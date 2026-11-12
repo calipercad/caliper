@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Parametric "coded skills": named generators that build geometry from a
 //! handful of parameters. This is the toolkit's extensible design library.
 //!

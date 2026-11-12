@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Exact-integer 2D boolean operations (blueprint §4).
 //!
 //! The combinatorial core is a **snap-rounded planar-overlay clipper**: both

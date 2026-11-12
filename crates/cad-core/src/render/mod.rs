@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Terminal rendering. A [`BrailleCanvas`] packs a 2×4 dot grid into each
 //! Unicode braille glyph, giving crisp line art in a plain terminal. 2D shapes
 //! are rasterised directly; 3D meshes are drawn as rotated wireframes.

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Phase 4 integration tests (roadmap v0.5): layout ops (array/mirror/group),
 //! view/HLR/shade rendering, and dimensioning. Driven through the interpreter.
 

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Phase 13 integration tests (roadmap v1.3): 3D edge fillet & chamfer. The
 //! bevel works by clipping each sharp convex edge with half-space planes
 //! (`geom3d::bevel`, reusing the CSG kernel), scoped to convex/prismatic solids.

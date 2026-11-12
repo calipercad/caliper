@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! 2D polygon offset / inset — grow or shrink a [`Shape`] by a distance.
 //!
 //! This is the geometry behind laser kerf and CNC tool-radius compensation,

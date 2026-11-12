@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Phase 10 integration tests (roadmap v1.2): 2D offset / inset driven through
 //! the interpreter. The offset algorithm's own unit tests live in
 //! `src/geom2d/offset.rs`; these exercise the `offset`/`inset` commands,

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Planar cross-section of a mesh: slice a solid by an axis-aligned plane and
 //! chain the cut segments into closed 2D contours (a [`Shape`]).
 //!

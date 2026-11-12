@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Argument parsing shared by script commands and skills.
 //!
 //! Tokens are split into *positional* values and `key=value` *options*. Helpers

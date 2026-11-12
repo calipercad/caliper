@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Minimal DXF (AutoCAD R2000 / AC1015) writer. Emits each contour as an
 //! `LWPOLYLINE` (or a native `CIRCLE`/`ARC` where the primitive is known), which
 //! LibreCAD, AutoCAD, Fusion and Inkscape all import.

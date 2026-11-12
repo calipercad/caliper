@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Caliper">
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="#13161c"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M32 13 L16 46" stroke="#e7eaf0" stroke-width="5"/>
+    <path d="M32 13 L48 46" stroke="#e7eaf0" stroke-width="5"/>
+    <path d="M16 46 V53 M48 46 V53 M15 53 H49" stroke="#e8b765" stroke-width="2.6"/>
+  </g>
+  <circle cx="32" cy="13" r="5.2" fill="#e8b765"/>
+</svg>

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! A tiny, std-only arithmetic expression evaluator for the script language.
 //!
 //! This is what makes designs *parametric*: wherever a command takes a number,

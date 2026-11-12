@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Parametric "maker" skills: everyday 3D-printable parts built from the solid
 //! primitives and the CSG kernel.
 //!

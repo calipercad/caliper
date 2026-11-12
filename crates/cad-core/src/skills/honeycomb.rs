@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Honeycomb panel: a rectangular plate perforated with a hexagonal grid.
 //!
 //! Great for speaker grilles, vents and decorative laser/CNC panels. Produces a

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! `cad` — the Caliper command-line front end.
 //!
 //! Usage:

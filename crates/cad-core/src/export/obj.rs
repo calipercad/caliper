@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Wavefront OBJ writer. Emits one group per mesh; faces are 1-indexed.
 
 use crate::geom3d::Mesh;

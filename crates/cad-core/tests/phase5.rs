@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Phase 5 integration tests (roadmap v0.6): the parametric skill library.
 //! The headline is `all_skills_run_at_defaults` — every built-in must produce
 //! geometry from a bare `skill <name>` invocation.

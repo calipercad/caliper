@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! Involute spur gear generator.
 //!
 //! Produces a true involute tooth profile from the standard parameters used by

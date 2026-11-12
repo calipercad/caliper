@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Caliper CAD
+
 //! 3D geometry: triangle meshes, solid primitives and extrusion.
 
 pub mod bevel;

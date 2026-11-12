@@ -5,6 +5,7 @@
 *.dxf
 *.svg
 !docs/logo.svg
+!docs/icon.svg
 *.gcode
 .DS_Store
 *.swp
