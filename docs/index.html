@@ -34,6 +34,7 @@
   .lockup{display:flex;align-items:center;gap:9px;justify-content:center;
     font-family:var(--mono);font-weight:700;color:var(--ink)}
   .lockup svg{width:22px;height:22px}
+  .lockup .ext{color:var(--accent)}
   .tag{display:inline-block;font-family:var(--mono);font-size:12px;letter-spacing:.14em;
     text-transform:uppercase;color:var(--accent);border:1px solid var(--line);
     border-radius:999px;padding:5px 12px;margin-bottom:22px}
@@ -89,7 +90,7 @@
       <circle class="pivot" cx="32" cy="11" r="5.5"/>
     </svg>
     <span class="tag">Rust · zero dependencies · v1.8.0</span>
-    <h1>Caliper<span class="dot">.</span></h1>
+    <h1>Caliper<span class="dot">.cad</span></h1>
     <p class="lede">A terminal-native, AI-assisted <b>parametric CAD</b> toolkit.</p>
     <p class="sub mono">A design is a <code>.cad</code> script — scriptable, diffable, reproducible.</p>
     <div class="btns">
@@ -191,7 +192,7 @@ cargo install --path crates/cad-cli
         <path class="leg" d="M32 11 L14 47"/><path class="leg" d="M32 11 L50 47"/>
         <path class="dim" d="M14 47 V55 M50 47 V55 M13 55 H51"/>
         <circle class="pivot" cx="32" cy="11" r="5.5"/>
-      </svg><span>Caliper</span>
+      </svg><span>caliper<span class="ext">.cad</span></span>
     </div>
     Built in Rust. Everything is text: scriptable, diffable, reproducible.<br>
     <a href="https://github.com/calipercad/caliper">github.com/calipercad/caliper</a>
