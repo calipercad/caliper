@@ -62,7 +62,7 @@ pub fn run_agent(
         let reply = tx.chat(&system, &messages)?;
         steps += 1;
         let (lines, done) = parse_reply(&reply);
-        transcript.push_str(&format!("── step {steps} ──\n{reply}\n"));
+        transcript.push_str(&format!("── step {steps} ──\n"));
 
         // Run the step atomically: snapshot, and on the first real error roll
         // the scene + history back so each turn is all-or-nothing. Lines that
@@ -72,16 +72,11 @@ pub fn run_agent(
         let scene_snap = interp.scene.clone();
         let hist_snap = interp.history.len();
         let mut step_err: Option<(String, String)> = None;
-        let mut ran = String::new();
+        let mut ran: Vec<String> = Vec::new();
         let mut skipped = 0usize;
         for line in &lines {
             match interp.exec_line(line) {
-                Ok(out) => {
-                    if !out.is_empty() {
-                        ran.push_str(out.trim_end());
-                        ran.push('\n');
-                    }
-                }
+                Ok(_) => ran.push(line.clone()), // keep it concise: the command, not its echo
                 Err(e) if is_prose(line, &e.to_string()) => {
                     skipped += 1; // narration, not a command
                 }
@@ -91,15 +86,12 @@ pub fn run_agent(
                 }
             }
         }
-        if skipped > 0 {
-            transcript.push_str(&format!("  (ignored {skipped} prose line(s))\n"));
-        }
 
         if let Some((line, e)) = step_err {
             interp.scene = scene_snap;
             interp.history.truncate(hist_snap);
             last_err = Some(e.clone());
-            transcript.push_str(&format!("  ✗ error: {e}\n"));
+            transcript.push_str(&format!("  ✗ {line}\n      {e}\n"));
             messages.push(Msg::assistant(reply));
             messages.push(Msg::user(format!(
                 "Error running `{line}`: {e}\nFix it and resend the whole step."
@@ -107,7 +99,13 @@ pub fn run_agent(
             continue;
         }
 
-        transcript.push_str(&ran);
+        // Concise per-step summary: the commands that ran (prose suppressed).
+        for cmd in &ran {
+            transcript.push_str(&format!("  + {cmd}\n"));
+        }
+        if skipped > 0 {
+            transcript.push_str(&format!("  (ignored {skipped} prose line(s))\n"));
+        }
         if done {
             converged = true;
             break;

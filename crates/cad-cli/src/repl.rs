@@ -7,9 +7,11 @@ use std::process::ExitCode;
 const BANNER: &str = "\
 ┌─────────────────────────────────────────────────────────────┐
 │  cad-assist — terminal CAD with AI + parametric skills        │
-│  type `help` for the language, `skills` to list generators    │
-│  `ai <describe it>` to design with Claude · `quit` to exit     │
-└─────────────────────────────────────────────────────────────┘";
+└─────────────────────────────────────────────────────────────┘
+  try:  box 40 40 20          a solid, then `render`
+        skill gear teeth=24   a parametric gear
+        ai a phone stand      design it with Claude
+  tutorial · help · skills · quit";
 
 pub fn run() -> ExitCode {
     println!("{BANNER}");

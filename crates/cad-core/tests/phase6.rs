@@ -102,4 +102,16 @@ fn prose_lines_are_ignored() {
         "prose did not surface as an error:\n{}",
         r.transcript
     );
+    // Quieter transcript: the prose sentence is not echoed, but the commands
+    // that ran are listed.
+    assert!(
+        !r.transcript.contains("sensible starter"),
+        "prose sentence is not echoed:\n{}",
+        r.transcript
+    );
+    assert!(
+        r.transcript.contains("circle 8 name=c"),
+        "ran commands are listed:\n{}",
+        r.transcript
+    );
 }

@@ -3,6 +3,29 @@
 All notable changes to cad-assist are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## [1.7.0] — UX overhaul: templates, quieter AI, friendly REPL, live TUI
+
+Making cad-assist easier to pick up. The kernel stays std-only; the CLI stays
+zero-crate (the TUI uses `stty`, like `curl`/`jq`).
+
+### Added
+- **Live-preview TUI** (`cad tui`): a full-screen mode with a render pane that
+  updates as you orbit with the arrow keys and type commands. Raw mode via
+  `stty`; a guard restores the terminal (settings, cursor, screen) on exit or
+  panic; falls back to the REPL when stdin isn't a TTY.
+- **`cad new <name> [template]`** with templates `gear` (default), `box`,
+  `enclosure`, `sketch`, `washer`, `blank`; `cad new --list` shows them.
+- **`tutorial`** command (and `cad tutorial`): a 60-second guided tour.
+- **"Did you mean?"**: an unknown command (REPL or script) and an unknown `cad`
+  subcommand now suggest the nearest match (Levenshtein). New public
+  `script::command_names()` / `script::suggest()`.
+
+### Changed
+- **Quieter AI**: the copilot no longer echoes the model's prose or every
+  intermediate render. Each step lists just the commands that ran; the run ends
+  with one entity list + a single render + the status.
+- The REPL banner is tighter, with copy-paste starters and `tutorial`/`help`.
+
 ## [1.6.2] — AI copilot ignores prose
 
 - **Fixed:** the copilot executed the model's explanation sentences as commands,

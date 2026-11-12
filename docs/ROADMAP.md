@@ -38,6 +38,7 @@ foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
 | 14 | v1.4 | Outline / stencil text (TrueType `glyf`) | ✅ complete |
 | 15 | v1.5 | 2D constraint sketch solver | ✅ complete |
 | 16 | v1.6 | Sketch arcs, circles & curve constraints | ✅ complete |
+| 17 | v1.7 | UX: templates, quieter AI, friendly REPL, live TUI | ✅ complete |
 
 ---
 
@@ -218,6 +219,28 @@ line–circle makes center-to-line distance ≈ r; two circles `tangent` →
 center distance ≈ r1+r2; `concentric`+`equal` tie centers/radii; a half-disk
 (segment + arc) emits a curved boundary; `cargo test` green (`tests/phase16.rs`
 + `sketch` unit tests).
+
+---
+
+## Phase 17 — UX overhaul ✅ (v1.7)
+
+**Objective.** Make cad-assist easier to pick up — without adding a crate.
+
+**Delivered.** A live-preview **TUI** (`cad tui`) with arrow-key orbit + a render
+pane that updates as you type, done std-only via `stty` raw mode + ANSI (a guard
+restores the terminal on exit/panic; non-TTY falls back to the REPL).
+`cad new <name> [template]` scaffolds from `gear`/`box`/`enclosure`/`sketch`/
+`washer`/`blank` (+ `--list`). A `tutorial` command/`cad tutorial` tour.
+"Did you mean?" suggestions on unknown commands and `cad` subcommands
+(`script::command_names`/`suggest`). The AI copilot is quieter — per-step command
+summaries and one final render instead of raw prose + repeated renders.
+
+**Scope.** The kernel stays std-only; the CLI stays zero-crate (TUI via `stty`).
+
+**Checkpoint (met).** `cargo test` green incl. suggester, template, TUI-helper
+(`decode_key`/`compose_frame`), and quieter-transcript tests; `new box` scaffolds
+a runnable file; a typo suggests the fix; `cad tui` opens a live view and
+restores the terminal on quit.
 
 ---
 

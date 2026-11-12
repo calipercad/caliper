@@ -36,7 +36,12 @@ cutters, pen plotters, CNC, and 3D printers**.
   `curl`/`jq`.
 - **Round-trips the real world.** Import SVG/DXF/STL, `undo`/`redo`, `watch` a
   file, and export SVG, DXF, G-code (G2/G3 arcs), STL (ASCII + binary), OBJ.
-- **Zero dependencies.** The entire kernel is `std`-only Rust.
+- **Zero dependencies.** The entire kernel is `std`-only Rust — and so is the
+  `cad` binary; it only shells out to ubiquitous programs at the edges
+  (`curl`/`jq` for AI, `stty` for the live TUI's raw mode).
+- **Approachable.** A live-preview `cad tui` (orbit with the arrow keys, type
+  commands, watch it update), `cad new <name> [template]` starters, a
+  `tutorial`, and "did you mean?" suggestions on typos.
 
 ## Install & build
 
@@ -124,6 +129,14 @@ Design with AI (needs an API key — see below):
 ```sh
 export ANTHROPIC_API_KEY=sk-ant-...
 cad ai "a hexagonal coaster 90mm across with a 10mm rim engraving groove"
+```
+
+New to it? Start from a template, take the tour, or open the live view:
+
+```sh
+cad new mypart box        # scaffold mypart.cad (gear|box|enclosure|sketch|washer|blank)
+cad tutorial              # a 60-second guided tour
+cad tui                   # full-screen live preview: arrow keys orbit, type to build
 ```
 
 ## The language

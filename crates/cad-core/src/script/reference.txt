@@ -113,6 +113,7 @@ SKILLS (parametric generators — run `skills` for the full list + usage)
 SCENE / INSPECTION
   units mm|cm|in         list          bbox [name]
   select <name>          delete <name>  clear         skills        help
+  tutorial               a short guided tour of the essentials
   measure [name]         mass properties: 2D area/perimeter/centroid; 3D volume/surface/genus
   interfere [a b]        clash check: a pair, or (no args) scan every pair
   bom [group=<tag>]      bill of materials — part quantities + sizes

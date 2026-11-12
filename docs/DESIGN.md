@@ -10,8 +10,10 @@ before making architectural changes, and update it when the model changes.
    feature seems to need a crate, first ask whether a focused, well-tested
    in-tree implementation is small enough (it usually is — triangulation,
    matrices, braille rasterisation, JSON string escaping all fit in a few dozen
-   lines). External *programs* (`curl`, `jq`) are acceptable at the edges where
-   reimplementing them would be irresponsible (TLS).
+   lines). External *programs* are acceptable at the edges where reimplementing
+   them would be irresponsible: `curl`/`jq` for the AI bridge (TLS/JSON) and
+   `stty` for the TUI's raw mode — so even the `cad-cli` binary carries zero
+   cargo dependencies.
 2. **Text is the interface.** Every capability is reachable from the line-based
    language, so it is scriptable, diffable, and reproducible. GUIs, if they ever
    come, are clients of the same core.
@@ -57,8 +59,11 @@ cad-assist/                 workspace root (no package)
 │   │       ├── ai/             copilot: Transport trait + curl/jq + agent loop
 │   │       ├── script/         tokenizer, Interpreter, reference.txt
 │   │       └── lib.rs          module wiring + tests
-│   └── cad-cli/            the `cad` binary (REPL, run, ai, new)
-│   │   └── tests/            integration tests (e.g. phase1.rs)
+│   └── cad-cli/            the `cad` binary
+│   │   └── src/
+│   │       ├── main.rs        subcommands (run/ai/new/tui/…), templates, scaffold
+│   │       ├── repl.rs        line-based interactive shell
+│   │       └── tui.rs         live-preview full-screen mode (raw mode via `stty`)
 ├── examples/               runnable .cad scripts
 └── docs/                   this file + ROADMAP.md
 ```

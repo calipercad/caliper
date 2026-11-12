@@ -252,6 +252,7 @@ impl Interpreter {
             "section" => self.op_section(&args),
             "skills" => return Ok(self.list_skills()),
             "help" => return Ok(LANGUAGE_REFERENCE.to_string()),
+            "tutorial" => return Ok(TUTORIAL.to_string()),
             "undo" => return self.op_undo(),
             "redo" => return self.op_redo(),
             // ---- io / render (not recorded in history) ----
@@ -260,7 +261,13 @@ impl Interpreter {
             "load" => return self.load(&args),
             "save" => return self.save(&args),
             "ai" => return self.ai(raw),
-            other => Err(CadError::Parse(format!("unknown command '{other}'"))),
+            other => Err(CadError::Parse(format!(
+                "unknown command '{other}'{}",
+                match suggest(other) {
+                    Some(s) => format!(" (did you mean `{s}`?)"),
+                    None => String::new(),
+                }
+            ))),
         };
 
         // Record scene-modifying commands for reproducible `save`, and keep an
@@ -2015,7 +2022,14 @@ impl Interpreter {
                 report.steps
             )
         };
-        Ok(format!("{}\n{status}\n", report.transcript))
+        // One final snapshot of the result: the entity list + a single render —
+        // instead of the per-step chatter the loop used to dump.
+        let list = self.list();
+        let render = self.render(&Args::default()).unwrap_or_default();
+        Ok(format!(
+            "{transcript}\n{status}\n\n{list}\n{render}",
+            transcript = report.transcript.trim_end(),
+        ))
     }
 }
 
@@ -2140,6 +2154,142 @@ fn default_config_path() -> Option<PathBuf> {
     Some(PathBuf::from(home).join(".cad-assist").join("config.cad"))
 }
 
+/// Every command keyword the interpreter understands — the canonical list, for
+/// "did you mean" suggestions and future tab-completion.
+pub fn command_names() -> &'static [&'static str] {
+    &[
+        // variables & sketch
+        "set",
+        "unset",
+        "vars",
+        "sketch",
+        "point",
+        "segment",
+        "constrain",
+        "solve",
+        // 2D creators
+        "rect",
+        "circle",
+        "polygon",
+        "star",
+        "arc",
+        "path",
+        "text",
+        // 3D creators
+        "box",
+        "cylinder",
+        "sphere",
+        "cone",
+        // operations
+        "extrude",
+        "revolve",
+        "translate",
+        "rotate",
+        "scale",
+        "array",
+        "mirror",
+        "group",
+        "ungroup",
+        "dim",
+        "section",
+        "union",
+        "subtract",
+        "intersect",
+        "xor",
+        "fillet",
+        "chamfer",
+        "offset",
+        "inset",
+        "shell",
+        "layer",
+        "role",
+        "part",
+        "assembly",
+        // skills & scene / meta
+        "skill",
+        "units",
+        "select",
+        "delete",
+        "clear",
+        "import",
+        "list",
+        "bbox",
+        "measure",
+        "interfere",
+        "bom",
+        "skills",
+        "help",
+        "tutorial",
+        "undo",
+        "redo",
+        // io
+        "render",
+        "export",
+        "load",
+        "save",
+        "ai",
+    ]
+}
+
+/// Nearest command to `input` by Levenshtein distance, within a small edit
+/// budget (so a typo suggests a fix but gibberish suggests nothing).
+pub fn suggest(input: &str) -> Option<&'static str> {
+    let budget = match input.len() {
+        0..=3 => 1,
+        4..=6 => 2,
+        _ => 3,
+    };
+    let mut best: Option<(&'static str, usize)> = None;
+    for &cmd in command_names() {
+        let d = levenshtein(input, cmd);
+        if d <= budget && best.map(|(_, bd)| d < bd).unwrap_or(true) {
+            best = Some((cmd, d));
+        }
+    }
+    best.map(|(c, _)| c)
+}
+
+/// Classic Levenshtein edit distance (two-row DP), std-only.
+fn levenshtein(a: &str, b: &str) -> usize {
+    let a: Vec<char> = a.chars().collect();
+    let b: Vec<char> = b.chars().collect();
+    let mut prev: Vec<usize> = (0..=b.len()).collect();
+    let mut cur = vec![0usize; b.len() + 1];
+    for (i, &ca) in a.iter().enumerate() {
+        cur[0] = i + 1;
+        for (j, &cb) in b.iter().enumerate() {
+            let cost = if ca == cb { 0 } else { 1 };
+            cur[j + 1] = (prev[j] + cost).min(prev[j + 1] + 1).min(cur[j] + 1);
+        }
+        std::mem::swap(&mut prev, &mut cur);
+    }
+    prev[b.len()]
+}
+
+/// A short guided walkthrough (the `tutorial` command / `cad tutorial`).
+const TUTORIAL: &str = "\
+cad-assist — 60-second tour
+───────────────────────────
+Everything is one command per line. Try these in order:
+
+  1. units mm                        set the document units
+  2. box 40 40 20 name=blk           a 40×40×20 solid
+  3. cylinder 8 30 name=bore         a drill
+  4. translate 20 20 -5 target=bore  position it
+  5. subtract blk bore name=part     bore a through-hole (3D CSG)
+  6. render mode=hlr                 hidden-line preview
+  7. measure part                    volume, surface, genus
+  8. export stl part.stl name=part   write a printable file
+
+Parametric skills (run `skills` for the full list):
+  skill gear teeth=24 module=2 bore=5 thickness=6 name=g
+
+Drive it with AI (needs ANTHROPIC_API_KEY):
+  ai a phone stand with a cable slot
+
+More: `help` (full language), `tutorial` (this), `quit` to exit.
+";
+
 /// Whether a command mutates the scene (and is therefore recorded to history
 /// and snapshotted for undo). These are exactly the non-early-return arms of the
 /// `exec_line` dispatch.
@@ -2187,4 +2337,48 @@ fn is_modifying(cmd: &str) -> bool {
             | "clear"
             | "import"
     )
+}
+
+#[cfg(test)]
+mod suggest_tests {
+    use super::*;
+
+    #[test]
+    fn suggests_near_typos() {
+        assert_eq!(suggest("recat"), Some("rect"));
+        assert_eq!(suggest("fillett"), Some("fillet"));
+        assert_eq!(suggest("extrud"), Some("extrude"));
+        assert_eq!(suggest("mesure"), Some("measure"));
+    }
+
+    #[test]
+    fn no_suggestion_for_gibberish() {
+        assert_eq!(suggest("xyzzyplover"), None);
+        assert_eq!(suggest("qqqq"), None);
+    }
+
+    #[test]
+    fn unknown_command_error_hints() {
+        let mut it = Interpreter::new();
+        let e = it.exec_line("recat 10 10").unwrap_err().to_string();
+        assert!(e.contains("unknown command") && e.contains("rect"), "{e}");
+    }
+
+    #[test]
+    fn command_list_is_dispatchable() {
+        // Every listed name is accepted by the dispatcher (no "unknown command"),
+        // guarding against the list drifting from exec_line.
+        let mut it = Interpreter::new();
+        for &c in command_names() {
+            let err = it
+                .exec_line(c)
+                .err()
+                .map(|e| e.to_string())
+                .unwrap_or_default();
+            assert!(
+                !err.contains("unknown command"),
+                "'{c}' is in command_names but not dispatched: {err}"
+            );
+        }
+    }
 }
