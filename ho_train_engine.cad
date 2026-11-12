@@ -1,0 +1,61 @@
+# cad-assist script
+units mm
+box 80 70 8 name=base
+box 80 8 60 name=back
+rotate 70 axis=x about=origin target=back
+translate 0 62 0 target=back
+union base back name=stand
+box 20 12 20 name=cableslot
+translate 30 55 0 target=cableslot
+subtract stand cableslot name=phonestand
+box 120 120 10 name=base
+cylinder 15 60 name=post
+translate 60 60 10 target=post
+union base post name=stand
+set base_w 80
+set base_d 90
+set thick 6
+box $base_w $base_d $thick name=base
+box $base_w 10 20 name=lip
+translate 0 0 0 target=lip
+box $base_w $thick 100 name=back
+translate 0 70 0 target=back
+rotate -20 axis=x about=origin target=back
+delete stand
+delete cableslot
+delete phonestand
+delete post
+union base back name=stand1
+union stand1 lip name=phonestand_v2
+delete base
+delete back
+delete lip
+delete stand1
+box 200 30 12 name=chassis
+translate 0 0 0 target=chassis
+delete phonestand_v2
+box 150 28 22 name=boiler
+translate 0 0 12 target=boiler
+box 45 30 32 name=cab
+translate -70 0 12 target=cab
+cylinder 5 8 name=smokestack
+rotate 0 axis=x target=smokestack
+translate 55 0 34 target=smokestack
+cylinder 3 5 name=dome
+translate 20 0 34 target=dome
+cylinder 7 3 name=wheel
+rotate 90 axis=x target=wheel
+translate 30 16 7 target=wheel
+array 4 kind=linear dx=-35 target=wheel name=wheels_right
+cylinder 7 3 name=wheel_L
+rotate 90 axis=x target=wheel_L
+translate 30 -16 7 target=wheel_L
+array 4 kind=linear dx=-35 target=wheel_L name=wheels_left
+box 12 32 10 name=pilot
+translate 97 0 2 target=pilot
+chamfer 4 target=pilot
+cylinder 4 6 name=headlamp
+rotate 90 axis=y target=headlamp
+translate 95 0 30 target=headlamp
+group chassis boiler cab smokestack dome pilot headlamp name=train_engine
+assembly train_engine chassis boiler cab smokestack dome pilot headlamp

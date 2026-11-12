@@ -11,7 +11,30 @@
 
 use cad_core::script::Interpreter;
 use std::io::{self, Read, Write};
-use std::process::{Command, ExitCode};
+use std::process::{Command, ExitCode, Stdio};
+
+/// Run `stty <args>` capturing stdout, with the **terminal inherited on stdin**
+/// (so `stty` can query/set it). `Command::output()` would otherwise give the
+/// child a closed stdin, making `stty -g`/`size` fail even on a real TTY.
+fn stty_out(args: &[&str]) -> Option<String> {
+    let out = Command::new("stty")
+        .args(args)
+        .stdin(Stdio::inherit())
+        .stderr(Stdio::null())
+        .output()
+        .ok()?;
+    out.status
+        .success()
+        .then(|| String::from_utf8_lossy(&out.stdout).trim().to_string())
+}
+
+/// Run `stty <args>` for its effect (raw mode, restore), terminal on stdin.
+fn stty_do(args: &[&str]) {
+    let _ = Command::new("stty")
+        .args(args)
+        .stdin(Stdio::inherit())
+        .status();
+}
 
 /// A decoded keypress.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -64,7 +87,10 @@ pub fn compose_frame(render: &str, status: &str, input: &str, rows: usize, cols:
     out.push_str(&clip(status, cols));
     out.push_str("\x1b[K\r\n");
     out.push_str(&clip(&format!("cad> {input}"), cols));
-    out.push_str("\x1b[K");
+    // Clear each line to EOL (above) and everything below the frame (here), so
+    // stale content — e.g. a prior render showing through a terminal without
+    // alt-screen support — can never linger.
+    out.push_str("\x1b[K\x1b[J");
     out
 }
 
@@ -85,7 +111,7 @@ struct RawGuard {
 }
 impl Drop for RawGuard {
     fn drop(&mut self) {
-        let _ = Command::new("stty").arg(&self.saved).status();
+        stty_do(&[&self.saved]);
         print!("\x1b[?25h\x1b[?1049l"); // show cursor, leave alt screen
         let _ = io::stdout().flush();
     }
@@ -93,8 +119,7 @@ impl Drop for RawGuard {
 
 /// Current terminal size `(rows, cols)` via `stty size`, defaulting to 24×80.
 fn term_size() -> (usize, usize) {
-    if let Ok(o) = Command::new("stty").arg("size").output() {
-        let s = String::from_utf8_lossy(&o.stdout);
+    if let Some(s) = stty_out(&["size"]) {
         let mut it = s.split_whitespace();
         if let (Some(r), Some(c)) = (it.next(), it.next()) {
             if let (Ok(r), Ok(c)) = (r.parse::<usize>(), c.parse::<usize>()) {
@@ -110,15 +135,15 @@ fn term_size() -> (usize, usize) {
 /// Launch the live-preview TUI. Falls back to the REPL when stdin isn't a TTY.
 pub fn run() -> ExitCode {
     // Save terminal settings; a failure means we're not on a TTY.
-    let saved = match Command::new("stty").arg("-g").output() {
-        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).trim().to_string(),
+    let saved = match stty_out(&["-g"]) {
+        Some(s) if !s.is_empty() => s,
         _ => {
             eprintln!("tui needs an interactive terminal — falling back to the REPL.");
             return crate::repl::run();
         }
     };
     let _guard = RawGuard { saved };
-    let _ = Command::new("stty").args(["raw", "-echo"]).status();
+    stty_do(&["raw", "-echo"]);
     print!("\x1b[?1049h\x1b[?25l\x1b[2J"); // alt screen, hide cursor, clear
     let _ = io::stdout().flush();
 

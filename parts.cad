@@ -1,0 +1,264 @@
+# cad-assist script
+units mm
+box 80 70 8 name=base
+box 80 8 60 name=back
+rotate 70 axis=x about=origin target=back
+translate 0 62 0 target=back
+union base back name=stand
+box 20 12 20 name=cableslot
+translate 30 55 0 target=cableslot
+subtract stand cableslot name=phonestand
+box 120 120 10 name=base
+cylinder 15 60 name=post
+translate 60 60 10 target=post
+union base post name=stand
+set base_w 80
+set base_d 90
+set thick 6
+box $base_w $base_d $thick name=base
+box $base_w 10 20 name=lip
+translate 0 0 0 target=lip
+box $base_w $thick 100 name=back
+translate 0 70 0 target=back
+rotate -20 axis=x about=origin target=back
+delete stand
+delete cableslot
+delete phonestand
+delete post
+union base back name=stand1
+union stand1 lip name=phonestand_v2
+delete base
+delete back
+delete lip
+delete stand1
+box 200 30 12 name=chassis
+translate 0 0 0 target=chassis
+delete phonestand_v2
+box 150 28 22 name=boiler
+translate 0 0 12 target=boiler
+box 45 30 32 name=cab
+translate -70 0 12 target=cab
+cylinder 5 8 name=smokestack
+rotate 0 axis=x target=smokestack
+translate 55 0 34 target=smokestack
+cylinder 3 5 name=dome
+translate 20 0 34 target=dome
+cylinder 7 3 name=wheel
+rotate 90 axis=x target=wheel
+translate 30 16 7 target=wheel
+array 4 kind=linear dx=-35 target=wheel name=wheels_right
+cylinder 7 3 name=wheel_L
+rotate 90 axis=x target=wheel_L
+translate 30 -16 7 target=wheel_L
+array 4 kind=linear dx=-35 target=wheel_L name=wheels_left
+box 12 32 10 name=pilot
+translate 97 0 2 target=pilot
+chamfer 4 target=pilot
+cylinder 4 6 name=headlamp
+rotate 90 axis=y target=headlamp
+translate 95 0 30 target=headlamp
+group chassis boiler cab smokestack dome pilot headlamp name=train_engine
+assembly train_engine chassis boiler cab smokestack dome pilot headlamp
+box 60 28 14 name=mainframe
+translate 0 0 18 target=mainframe
+cylinder 13 70 name=boiler
+rotate 90 axis=y about=center target=boiler
+translate 5 0 28 target=boiler
+cylinder 15 10 name=smokebox
+rotate 90 axis=y about=center target=smokebox
+translate 42 0 28 target=smokebox
+cylinder 4 14 name=chimney
+translate 44 0 42 target=chimney
+cone 5 6 name=chimneytop
+translate 44 0 56 target=chimneytop
+delete mainframe
+delete smokebox
+delete chimney
+delete chimneytop
+box 300 120 10 name=main_plate
+translate 0 0 0 target=main_plate
+box 20 120 60 name=rail_front_block
+translate 120 0 10 target=rail_front_block
+box 20 120 60 name=rail_rear_block
+translate -120 0 10 target=rail_rear_block
+box 240 15 50 name=side_rail_l
+translate 0 50 10 target=side_rail_l
+box 240 15 50 name=side_rail_r
+translate 0 -50 10 target=side_rail_r
+delete main_plate
+delete rail_front_block
+delete rail_rear_block
+delete side_rail_l
+delete side_rail_r
+box 200 6 4 name=frame_rail_l
+translate 0 14 10 target=frame_rail_l
+box 200 6 4 name=frame_rail_r
+translate 0 -14 10 target=frame_rail_r
+box 20 30 5 name=crossbeam1
+translate 60 0 8 target=crossbeam1
+box 20 30 5 name=crossbeam2
+translate 0 0 8 target=crossbeam2
+box 20 30 5 name=crossbeam3
+translate -60 0 8 target=crossbeam3
+cylinder 2 34 seg=24 name=axle1
+rotate 90 axis=x target=axle1
+translate 50 17 6 target=axle1
+cylinder 2 34 seg=24 name=axle2
+rotate 90 axis=x target=axle2
+translate 0 17 6 target=axle2
+cylinder 2 34 seg=24 name=axle3
+rotate 90 axis=x target=axle3
+translate -50 17 6 target=axle3
+box 14 40 10 name=buffer_beam_f
+translate 98 0 10 target=buffer_beam_f
+box 14 40 10 name=buffer_beam_r
+translate -98 0 10 target=buffer_beam_r
+group frame_rail_l frame_rail_r crossbeam1 crossbeam2 crossbeam3 axle1 axle2 axle3 buffer_beam_f buffer_beam_r name=chassis_detail
+clear
+set L 210
+set W 18
+set bodyH 22
+box 210 18 22 name=mainbody
+translate 0 0 6 target=mainbody
+box 210 18 6 name=frame
+translate 0 0 0 target=frame
+delete mainbody
+delete frame
+box 210 20 8 name=walkway
+translate 0 0 10 target=walkway
+box 150 18 24 name=longhood
+translate -20 1 18 target=longhood
+box 40 18 30 name=cab
+translate 75 1 18 target=cab
+box 30 18 14 name=shorthood
+translate 95 1 18 target=shorthood
+union walkway longhood name=loco1
+union loco1 cab name=loco2
+union loco2 shorthood name=locobody
+box 45 12 10 name=truckF
+translate -70 4 0 target=truckF
+box 45 12 10 name=truckR
+translate 65 4 0 target=truckR
+box 60 10 10 name=fueltank
+translate -5 5 0 target=fueltank
+cylinder 6 20 name=wheelstock
+rotate 90 axis=x target=wheelstock
+array 6 kind=linear dx=24 target=wheelstock name=wheels
+skill gear teeth=24 module=2 bore=8 thickness=6 name=camgear
+translate 0 0 0 target=camgear
+skill flange outer=50 bore=20 bolt_circle=38 bolt_dia=5 bolts=6 thickness=5 name=engineflange
+translate 80 0 0 target=engineflange
+skill cam base=20 lift=10 motion=harmonic rise_deg=120 dwell_deg=60 bore=8 thickness=10 name=enginecam
+translate 160 0 0 target=enginecam
+skill standoff outer=10 bore=5 height=20 name=enginespacer
+translate 220 0 0 target=enginespacer
+skill gear teeth=24 module=2 bore=5 thickness=6 name=g1
+delete g1
+set bore 40
+set stroke 50
+cylinder ${$bore/2+8} $stroke seg=48 name=cyl_block
+cylinder ${$bore/2} ${$stroke+4} seg=48 name=cyl_bore
+translate 0 0 2 target=cyl_bore
+subtract cyl_block cyl_bore name=block
+delete walkway
+delete longhood
+delete cab
+delete shorthood
+delete loco1
+delete loco2
+delete locobody
+delete truckF
+delete truckR
+delete fueltank
+delete wheelstock
+delete wheelstock1
+delete wheelstock2
+delete wheelstock3
+delete wheelstock4
+delete wheelstock5
+delete camgear
+delete engineflange
+delete enginecam
+delete enginespacer
+delete cyl_bore
+delete cyl_block
+cylinder 18 30 seg=32 name=piston
+translate 0 0 55 target=piston
+box 12 12 70 name=conrod
+translate -6 -6 20 target=conrod
+cylinder 12 20 seg=32 name=crank_shaft
+rotate 90 axis=x target=crank_shaft
+translate 0 10 10 target=crank_shaft
+cylinder 25 8 seg=32 name=crank_web
+translate 0 0 6 target=crank_web
+cylinder 35 12 seg=48 name=flywheel
+rotate 90 axis=x target=flywheel
+translate 0 30 10 target=flywheel
+box 40 40 40 name=cube
+delete cube
+skill gear teeth=20 module=2 bore=5 thickness=6 name=part1
+skill washer outer=15 inner=5 thickness=3 name=part2
+skill standoff outer=8 bore=3 height=12 name=part3
+skill gear teeth=24 module=2 bore=5 thickness=6 name=g1
+clear
+set post_h 40
+set post_r 3
+cylinder $post_r $post_h name=post_left
+translate -25 0 0 target=post_left
+cylinder $post_r $post_h name=post_right
+translate 25 0 0 target=post_right
+box 70 20 4 name=baseplate
+translate 0 0 0 target=baseplate
+box 30 3 5 name=crossbuck1
+rotate 45 axis=y target=crossbuck1
+translate -25 0 38 target=crossbuck1
+box 30 3 5 name=crossbuck2
+rotate -45 axis=y target=crossbuck2
+translate -25 0 38 target=crossbuck2
+box 30 3 5 name=crossbuck3
+rotate 45 axis=y target=crossbuck3
+translate 25 0 38 target=crossbuck3
+box 30 3 5 name=crossbuck4
+rotate -45 axis=y target=crossbuck4
+translate 25 0 38 target=crossbuck4
+cylinder 3 6 name=ledpocket_l
+rotate 90 axis=x target=ledpocket_l
+translate -25 -2 30 target=ledpocket_l
+cylinder 3 6 name=ledpocket_r
+rotate 90 axis=x target=ledpocket_r
+translate 25 -2 30 target=ledpocket_r
+cylinder 1.5 50 name=wirechannel_l
+translate -25 0 -2 target=wirechannel_l
+cylinder 1.5 50 name=wirechannel_r
+translate 25 0 -2 target=wirechannel_r
+subtract post_left wirechannel_l name=post_left_wired
+subtract post_right wirechannel_r name=post_right_wired
+subtract post_left_wired ledpocket_l name=post_left_final
+subtract post_right_wired ledpocket_r name=post_right_final
+group post_left_final crossbuck1 crossbuck2 name=signal_left
+group post_right_final crossbuck3 crossbuck4 name=signal_right
+skill gear teeth=20 module=2 bore=5 thickness=6 name=gear1
+skill washer outer=20 inner=8 thickness=3 name=washer1
+skill standoff outer=6 bore=3 height=10 name=standoff1
+clear
+skill enclosure width=70 depth=50 height=25 wall=2 lid standoffs name=case
+box 35 29 5 name=win
+translate 17.5 10.5 -1 target=win
+subtract case_lid win name=lid_cut
+section case_base axis=z at=1 name=base_slice
+section lid_cut axis=z at=1.5 name=lid_slice
+skill enclosure width=80 depth=60 height=30 wall=2 lid standoffs name=case
+skill enclosure width=80 depth=60 height=30 wall=2 lid standoffs name=case
+cylinder 5 10 seg=32 name=wire1
+rotate 90 axis=x target=wire1
+translate 40 65 10 target=wire1
+subtract case_base wire1 name=case_base2
+cylinder 5 10 seg=32 name=wire2
+rotate 90 axis=x target=wire2
+translate 40 -5 10 target=wire2
+subtract case_base2 wire2 name=case_base3
+part case_base3 target=case_base3
+part wire target=wire1
+part wire target=wire2
+part case_base target=case_base2
+skill gear teeth=24 module=2 bore=5 thickness=6 name=part1

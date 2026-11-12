@@ -3,6 +3,16 @@
 All notable changes to cad-assist are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## [1.7.1] — TUI fixes
+
+- **Fixed:** `cad tui` always reported "needs an interactive terminal" and fell
+  back to the REPL, even in a real terminal. `stty -g`/`stty size` were run via
+  `Command::output()`, which gives the child a closed stdin, so `stty` had no
+  terminal to read. They now inherit the terminal on stdin (`Stdio::inherit()`).
+- **Fixed:** the live frame now erases to end-of-display each redraw
+  (`\x1b[J`), so stale content (e.g. a previous render on a terminal without
+  alt-screen support) can't linger behind the pane.
+
 ## [1.7.0] — UX overhaul: templates, quieter AI, friendly REPL, live TUI
 
 Making cad-assist easier to pick up. The kernel stays std-only; the CLI stays
