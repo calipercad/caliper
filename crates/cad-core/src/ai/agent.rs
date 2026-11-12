@@ -64,12 +64,16 @@ pub fn run_agent(
         let (lines, done) = parse_reply(&reply);
         transcript.push_str(&format!("── step {steps} ──\n{reply}\n"));
 
-        // Run the step atomically: snapshot, and on the first error roll the
-        // scene + history back so each turn is all-or-nothing.
+        // Run the step atomically: snapshot, and on the first real error roll
+        // the scene + history back so each turn is all-or-nothing. Lines that
+        // aren't commands at all (the model's prose/explanation) are skipped as
+        // narration rather than treated as errors — the interpreter decides what
+        // is a command, so there's no brittle keyword list here.
         let scene_snap = interp.scene.clone();
         let hist_snap = interp.history.len();
         let mut step_err: Option<(String, String)> = None;
         let mut ran = String::new();
+        let mut skipped = 0usize;
         for line in &lines {
             match interp.exec_line(line) {
                 Ok(out) => {
@@ -78,11 +82,17 @@ pub fn run_agent(
                         ran.push('\n');
                     }
                 }
+                Err(e) if is_prose(line, &e.to_string()) => {
+                    skipped += 1; // narration, not a command
+                }
                 Err(e) => {
                     step_err = Some((line.clone(), e.to_string()));
                     break;
                 }
             }
+        }
+        if skipped > 0 {
+            transcript.push_str(&format!("  (ignored {skipped} prose line(s))\n"));
         }
 
         if let Some((line, e)) = step_err {
@@ -126,6 +136,25 @@ pub fn run_agent(
     })
 }
 
+/// Whether a failed line is the model's prose rather than a (mistyped) command.
+/// It must be an unknown-command error AND its first token must not look like a
+/// command keyword — a command is a lowercase identifier (`extrude`, `skill`),
+/// whereas prose starts with a capital or contains punctuation (`The`,
+/// `There's`, `I'll`). A lowercase typo like `widget` is kept as a real error so
+/// the model still gets a chance to repair it.
+fn is_prose(line: &str, err: &str) -> bool {
+    if !err.contains("unknown command") {
+        return false;
+    }
+    let first = line.split_whitespace().next().unwrap_or("");
+    let command_shaped = !first.is_empty()
+        && first.starts_with(|c: char| c.is_ascii_lowercase())
+        && first
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_');
+    !command_shaped
+}
+
 /// Split a model reply into runnable command lines + whether it signalled DONE.
 fn parse_reply(reply: &str) -> (Vec<String>, bool) {
     let mut lines = Vec::new();
@@ -135,7 +164,12 @@ fn parse_reply(reply: &str) -> (Vec<String>, bool) {
         if t.is_empty() {
             continue;
         }
-        if t.eq_ignore_ascii_case("done") {
+        // A line that is just "DONE" (tolerating trailing punctuation or a
+        // leading marker like "- ") signals completion.
+        let bare = t
+            .trim_start_matches(['-', '*', '#', ' '])
+            .trim_end_matches(['.', '!']);
+        if bare.eq_ignore_ascii_case("done") {
             done = true;
             continue;
         }
@@ -164,10 +198,11 @@ fn build_system(interp: &Interpreter) -> String {
     }
     format!(
         "You are an expert CAD designer driving `cad-assist` in an iterative loop.\n\
-         Each turn, reply with cad-assist commands, ONE PER LINE — no prose, no markdown fences.\n\
+         Each turn, reply with ONLY cad-assist commands, ONE PER LINE. No prose, no \
+         explanation, no markdown fences, no comments — any non-command line is ignored.\n\
          After you reply the commands run; you then receive the entity list and a render.\n\
          Emit more commands to fix or extend the design. When it fully matches the request, \
-         reply with a single line: DONE\n\
+         reply with exactly one line containing only: DONE\n\
          Prefer parametric `skill` commands when one fits. Give entities clear names.\n\n\
          ==== SKILLS ====\n{skills}\n==== LANGUAGE REFERENCE ====\n{reference}",
         reference = crate::script::LANGUAGE_REFERENCE

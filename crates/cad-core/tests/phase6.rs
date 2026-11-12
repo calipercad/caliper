@@ -77,3 +77,29 @@ fn failed_turn_rolls_back() {
     );
     assert!(it.history.is_empty(), "history rolled back too");
 }
+
+/// The model's prose (explanation sentences) is ignored, not executed as
+/// commands — so a reply mixing narration + commands + a trailing "DONE."
+/// converges in one step without spurious "unknown command" errors.
+#[test]
+fn prose_lines_are_ignored() {
+    let tx = MockTransport::new(vec!["Here's a sensible starter project.\n\
+         circle 8 name=c\n\
+         extrude 5 target=c name=part\n\
+         The project is a simple extruded disc.\n\
+         DONE."
+        .to_string()]);
+    let mut it = Interpreter::new();
+    let r = run_agent(&tx, &mut it, "a disc", AgentMode::Create, 4).unwrap();
+    assert!(r.converged, "converged despite the prose");
+    assert_eq!(r.steps, 1, "no wasted repair step for prose");
+    assert!(
+        matches!(it.scene.get("part").unwrap().geom, Geometry::Mesh(_)),
+        "the real commands still ran"
+    );
+    assert!(
+        !r.transcript.contains("unknown command"),
+        "prose did not surface as an error:\n{}",
+        r.transcript
+    );
+}

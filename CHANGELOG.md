@@ -3,6 +3,17 @@
 All notable changes to cad-assist are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## [1.6.2] — AI copilot ignores prose
+
+- **Fixed:** the copilot executed the model's explanation sentences as commands,
+  producing spurious `unknown command 'The'` / `'There's'` errors and wasting
+  repair steps (and losing a `DONE` that shared a line with prose). The agent now
+  skips non-command "prose" lines as narration — distinguishing them from a
+  mistyped command (a lowercase keyword like `widget`, still fed back for
+  repair) by the line's first token. `DONE` is also recognized with trailing
+  punctuation (`DONE.`) or a list marker. The system prompt reinforces
+  "commands only; non-command lines are ignored."
+
 ## [1.6.1] — AI error-reporting fix
 
 - **Fixed:** a failed/unexpected AI API response crashed with a cryptic
