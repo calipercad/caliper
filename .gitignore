@@ -8,3 +8,5 @@
 .DS_Store
 *.swp
 *.swo
+# scratch designs in the repo root (examples/*.cad stay tracked)
+/*.cad
