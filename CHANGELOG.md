@@ -3,6 +3,33 @@
 All notable changes to cad-assist are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## [1.5.0] — 2D constraint sketch solver
+
+cad-assist becomes a constraint-driven sketcher: build a sketch from points and
+line segments, relate them geometrically, and `solve` finds the exact geometry —
+the biggest "real CAD" addition since the kernel. Still std-only (a small
+in-tree Gauss–Newton solver, no dependencies).
+
+### Added
+- **Constraint solver** (`geom2d::sketch`): a `Sketch` of points + segments with
+  constraints `fix`, `coincident`, `horizontal`, `vertical`, `parallel`,
+  `perpendicular`, `equal`, `distance`, `length`, `angle`. `solve` runs a
+  Gauss–Newton / Levenberg–Marquardt iteration (numeric Jacobian + an in-tree
+  dense `solve_linear`), then the sketch emits a `Shape`. Deterministic — a
+  solve replays bit-identically through `save`.
+- Commands: `sketch <name>`, `point <name> <x> <y>`, `segment <name> <p1> <p2>`,
+  `constrain <type> <refs…> [value]`, `solve`, `sketch close [open]`. Point
+  coordinates and constraint values accept `$var`/expressions (Phase 9), so one
+  number can drive a constrained design. Undo/redo cover sketch state.
+- Under-constrained sketches converge to the nearest solution from the initial
+  guess; conflicting constraints minimize residual and are reported, never crash.
+- Example `examples/constrained-plate.cad`.
+
+### Also
+- **`ANTHROPIC_BASE_URL`** env var now overrides the AI API host (defaults to
+  `https://api.anthropic.com`), alongside `ANTHROPIC_API_KEY` / `CAD_AI_MODEL` —
+  for proxies and gateways.
+
 ## [1.4.0] — Outline / stencil text
 
 `text` can now emit **filled, cut-out letters** from a TrueType font, alongside

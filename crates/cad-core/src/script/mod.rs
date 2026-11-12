@@ -9,6 +9,7 @@ use crate::error::{CadError, Result};
 use crate::export;
 use crate::geom2d::boolean::{boolean, BoolOp};
 use crate::geom2d::offset;
+use crate::geom2d::sketch::Sketch;
 use crate::geom2d::text::{self, Align};
 use crate::geom2d::Shape;
 use crate::geom3d::{self, Mesh};
@@ -55,18 +56,26 @@ pub struct Interpreter {
     pub history: Vec<String>,
     /// Named numeric variables for parametric expressions (`set w 40`, `$w`).
     pub vars: HashMap<String, f64>,
+    /// The constraint sketch currently being built (`sketch <name>` … `solve`
+    /// … `sketch close`), if any.
+    pub sketch: Option<Sketch>,
     /// Context of the last AI copilot run that did not converge: `(request,
     /// note)`, consumed by `ai fix`.
     pub last_ai: Option<(String, String)>,
-    /// Undo/redo snapshots of `(scene, history, vars)` taken before each
-    /// scene-modifying command.
+    /// Undo/redo snapshots taken before each scene-modifying command.
     undo_stack: Vec<Snapshot>,
     redo_stack: Vec<Snapshot>,
 }
 
-/// A point-in-time snapshot restored by `undo`/`redo`: the scene, the history
-/// log, and the variable store move together so a parametric edit is reversible.
-type Snapshot = (Scene, Vec<String>, HashMap<String, f64>);
+/// A point-in-time snapshot restored by `undo`/`redo`: the scene, history log,
+/// variable store, and active sketch move together so any edit is reversible.
+#[derive(Clone)]
+struct Snapshot {
+    scene: Scene,
+    history: Vec<String>,
+    vars: HashMap<String, f64>,
+    sketch: Option<Sketch>,
+}
 
 /// Maximum undo depth kept in memory.
 const MAX_UNDO: usize = 100;
@@ -79,9 +88,20 @@ impl Interpreter {
             user_skill_dir: default_skill_dir(),
             history: Vec::new(),
             vars: HashMap::new(),
+            sketch: None,
             last_ai: None,
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
+        }
+    }
+
+    /// A clone of the current reversible state, for the undo stack.
+    fn snapshot(&self) -> Snapshot {
+        Snapshot {
+            scene: self.scene.clone(),
+            history: self.history.clone(),
+            vars: self.vars.clone(),
+            sketch: self.sketch.clone(),
         }
     }
 
@@ -144,6 +164,13 @@ impl Interpreter {
             "set" => return self.op_set(&tokens, raw),
             "unset" => return self.op_unset(&tokens, raw),
             "vars" => return Ok(self.list_vars()),
+            // Sketch commands own their raw tokens too: point/segment names stay
+            // literal, while numeric args are evaluated against `vars`.
+            "sketch" => return self.op_sketch(&tokens, raw),
+            "point" => return self.op_point(&tokens, raw),
+            "segment" => return self.op_segment(&tokens, raw),
+            "constrain" => return self.op_constrain(&tokens, raw),
+            "solve" => return self.op_solve(raw),
             _ => {}
         }
 
@@ -156,7 +183,7 @@ impl Interpreter {
 
         // Snapshot state before a scene-modifying command, for undo.
         let snap = if is_modifying(cmd) {
-            Some((self.scene.clone(), self.history.clone(), self.vars.clone()))
+            Some(self.snapshot())
         } else {
             None
         };
@@ -242,16 +269,19 @@ impl Interpreter {
         result
     }
 
-    /// `undo` — restore the scene + history + vars to before the last command.
+    /// `undo` — restore the scene + history + vars + sketch to before the last
+    /// command.
     fn op_undo(&mut self) -> Result<String> {
         match self.undo_stack.pop() {
-            Some((scene, history, vars)) => {
-                self.redo_stack.push((
-                    std::mem::replace(&mut self.scene, scene),
-                    std::mem::take(&mut self.history),
-                    std::mem::replace(&mut self.vars, vars),
-                ));
-                self.history = history;
+            Some(prev) => {
+                let cur = Snapshot {
+                    scene: std::mem::replace(&mut self.scene, prev.scene),
+                    history: std::mem::take(&mut self.history),
+                    vars: std::mem::replace(&mut self.vars, prev.vars),
+                    sketch: std::mem::replace(&mut self.sketch, prev.sketch),
+                };
+                self.redo_stack.push(cur);
+                self.history = prev.history;
                 Ok("undid last change".into())
             }
             None => Err(CadError::Arg("nothing to undo".into())),
@@ -261,13 +291,15 @@ impl Interpreter {
     /// `redo` — reapply the change most recently undone.
     fn op_redo(&mut self) -> Result<String> {
         match self.redo_stack.pop() {
-            Some((scene, history, vars)) => {
-                self.undo_stack.push((
-                    std::mem::replace(&mut self.scene, scene),
-                    std::mem::take(&mut self.history),
-                    std::mem::replace(&mut self.vars, vars),
-                ));
-                self.history = history;
+            Some(next) => {
+                let cur = Snapshot {
+                    scene: std::mem::replace(&mut self.scene, next.scene),
+                    history: std::mem::take(&mut self.history),
+                    vars: std::mem::replace(&mut self.vars, next.vars),
+                    sketch: std::mem::replace(&mut self.sketch, next.sketch),
+                };
+                self.undo_stack.push(cur);
+                self.history = next.history;
                 Ok("redid change".into())
             }
             None => Err(CadError::Arg("nothing to redo".into())),
@@ -296,7 +328,7 @@ impl Interpreter {
         }
         let src = tokens[2..].join(" ");
         let val = expr::eval(&src, &self.vars)?;
-        let snap = (self.scene.clone(), self.history.clone(), self.vars.clone());
+        let snap = self.snapshot();
         self.vars.insert(name.clone(), val);
         self.push_undo(snap);
         self.history.push(raw.trim().to_string());
@@ -311,7 +343,7 @@ impl Interpreter {
         if !self.vars.contains_key(name) {
             return Err(CadError::NotFound(format!("variable `{name}`")));
         }
-        let snap = (self.scene.clone(), self.history.clone(), self.vars.clone());
+        let snap = self.snapshot();
         self.vars.remove(name);
         self.push_undo(snap);
         self.history.push(raw.trim().to_string());
@@ -331,6 +363,135 @@ impl Interpreter {
         }
         out.pop();
         out
+    }
+
+    // ---- sketch / constraints ----------------------------------------------
+
+    /// Evaluate a sketch numeric token against the current variables.
+    fn sk_num(&self, tok: &str) -> Result<f64> {
+        expr::eval(tok, &self.vars)
+    }
+
+    /// `sketch <name>` — begin a new active constraint sketch.
+    /// `sketch close [open]` — emit the solved sketch as a `Shape` and clear it.
+    fn op_sketch(&mut self, tokens: &[String], raw: &str) -> Result<String> {
+        let arg = tokens
+            .get(1)
+            .ok_or_else(|| CadError::Arg("usage: sketch <name> | sketch close".into()))?;
+        if arg == "close" {
+            let sk = self
+                .sketch
+                .as_ref()
+                .ok_or_else(|| CadError::Arg("no active sketch to close".into()))?;
+            let closed = tokens.get(2).map(|t| t != "open").unwrap_or(true);
+            let shape = sk.to_shape(closed);
+            let name = sk.name.clone();
+            let snap = self.snapshot();
+            self.scene.add(name.clone(), Geometry::Shape(shape));
+            self.sketch = None;
+            self.push_undo(snap);
+            self.history.push(raw.trim().to_string());
+            return Ok(format!("sketch '{name}' closed → entity '{name}'"));
+        }
+        let snap = self.snapshot();
+        self.sketch = Some(Sketch::new(arg.clone()));
+        self.push_undo(snap);
+        self.history.push(raw.trim().to_string());
+        Ok(format!("sketch '{arg}' started"))
+    }
+
+    /// `point <name> <x> <y>` — add a point (initial guess) to the active sketch.
+    fn op_point(&mut self, tokens: &[String], raw: &str) -> Result<String> {
+        let name = tokens
+            .get(1)
+            .ok_or_else(|| CadError::Arg("usage: point <name> <x> <y>".into()))?
+            .clone();
+        let x = self.sk_num(
+            tokens
+                .get(2)
+                .ok_or_else(|| CadError::Arg("point needs x y".into()))?,
+        )?;
+        let y = self.sk_num(
+            tokens
+                .get(3)
+                .ok_or_else(|| CadError::Arg("point needs x y".into()))?,
+        )?;
+        let snap = self.snapshot();
+        let sk = self
+            .sketch
+            .as_mut()
+            .ok_or_else(|| CadError::Arg("no active sketch (run `sketch <name>` first)".into()))?;
+        sk.add_point(&name, Vec2::new(x, y))?;
+        self.push_undo(snap);
+        self.history.push(raw.trim().to_string());
+        Ok(format!("point '{name}' ({x}, {y})"))
+    }
+
+    /// `segment <name> <p1> <p2>` — add a line segment between two points.
+    fn op_segment(&mut self, tokens: &[String], raw: &str) -> Result<String> {
+        let (name, a, b) = match (tokens.get(1), tokens.get(2), tokens.get(3)) {
+            (Some(n), Some(a), Some(b)) => (n.clone(), a.clone(), b.clone()),
+            _ => return Err(CadError::Arg("usage: segment <name> <p1> <p2>".into())),
+        };
+        let snap = self.snapshot();
+        let sk = self
+            .sketch
+            .as_mut()
+            .ok_or_else(|| CadError::Arg("no active sketch".into()))?;
+        sk.add_segment(&name, &a, &b)?;
+        self.push_undo(snap);
+        self.history.push(raw.trim().to_string());
+        Ok(format!("segment '{name}' {a}-{b}"))
+    }
+
+    /// `constrain <type> <refs...> [value]` — add one geometric constraint.
+    /// `distance`/`length`/`angle` take a trailing numeric value (expressions ok).
+    fn op_constrain(&mut self, tokens: &[String], raw: &str) -> Result<String> {
+        let kind = tokens
+            .get(1)
+            .ok_or_else(|| CadError::Arg("usage: constrain <type> <refs...> [value]".into()))?
+            .clone();
+        let rest = &tokens[2..];
+        // distance/length/angle carry a trailing numeric value.
+        let (refs_toks, value) = if matches!(kind.as_str(), "distance" | "length" | "angle") {
+            let v = rest
+                .last()
+                .ok_or_else(|| CadError::Arg(format!("{kind} needs a value")))?;
+            (&rest[..rest.len() - 1], Some(self.sk_num(v)?))
+        } else {
+            (rest, None)
+        };
+        let refs: Vec<&str> = refs_toks.iter().map(|s| s.as_str()).collect();
+        let snap = self.snapshot();
+        let sk = self
+            .sketch
+            .as_mut()
+            .ok_or_else(|| CadError::Arg("no active sketch".into()))?;
+        sk.add_constraint(&kind, &refs, value)?;
+        self.push_undo(snap);
+        self.history.push(raw.trim().to_string());
+        Ok(format!("constraint '{kind}' added"))
+    }
+
+    /// `solve` — run the constraint solver on the active sketch.
+    fn op_solve(&mut self, raw: &str) -> Result<String> {
+        let snap = self.snapshot();
+        let sk = self
+            .sketch
+            .as_mut()
+            .ok_or_else(|| CadError::Arg("no active sketch to solve".into()))?;
+        let rep = sk.solve();
+        self.push_undo(snap);
+        self.history.push(raw.trim().to_string());
+        let status = if rep.satisfied {
+            "solved"
+        } else {
+            "did not fully converge"
+        };
+        Ok(format!(
+            "{status}: {} iters, residual {:.2e}, {} free coords, {} equations",
+            rep.iterations, rep.residual, rep.free_coords, rep.equations
+        ))
     }
 
     // ---- 2D creators -------------------------------------------------------

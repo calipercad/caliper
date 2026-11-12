@@ -14,6 +14,7 @@
 
 pub mod boolean;
 pub mod offset;
+pub mod sketch;
 pub mod text;
 
 use crate::bbox::Aabb2;

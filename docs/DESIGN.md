@@ -41,7 +41,8 @@ cad-assist/                 workspace root (no package)
 │   │       ├── geom2d/
 │   │       │   ├── boolean.rs  exact-integer union/difference/intersection/xor
 │   │       │   ├── offset.rs   polygon offset / inset (round/miter/bevel joins)
-│   │       │   └── text/       single-stroke font + stroke_text layout
+│   │       │   ├── sketch.rs   2D constraint solver (Gauss–Newton) → Shape
+│   │       │   └── text/       single-stroke font + TrueType glyf outline text
 │   │       ├── geom3d.rs       Mesh + primitives, holed extrude, revolve, mass props
 │   │       ├── geom3d/
 │   │       │   ├── csg.rs      BSP mesh booleans + shell (3D CSG)
@@ -184,10 +185,25 @@ Expansion is deliberately *not* baked into history: `exec_line` records the raw,
 unexpanded line, so a saved `.cad` keeps `set w 40` and `rect $w $w*2` verbatim
 and stays parametric across a round-trip. `set`/`unset` are recorded (ordered
 before their uses) and, with the variable store, are carried in the undo/redo
-snapshot tuple `(Scene, history, vars)` so a parametric edit is reversible.
+`Snapshot { scene, history, vars, sketch }` so a parametric edit is reversible.
 There is no typed value system elsewhere: a token is a `String` and numeric
 meaning is still imposed at read time by `Args` — the evaluator sits one level
 above, rewriting a token to a number string before it reaches `Args`.
+
+### Constraint sketches
+
+`geom2d::sketch` makes the language a constraint-driven sketcher. A `Sketch`
+(held on the interpreter as the active sketch, in the undo snapshot) is points +
+line segments plus geometric `Constraint`s (`fix`, `coincident`, `horizontal`/
+`vertical`, `parallel`/`perpendicular`, `equal`, `distance`, `length`, `angle`).
+`solve` treats the non-fixed point coordinates as the free variables and each
+constraint as residual equation(s), then runs Gauss–Newton with Levenberg–
+Marquardt damping — a numeric central-difference Jacobian and a small in-tree
+dense `solve_linear` (Gaussian elimination; `math.rs` has no general linear
+algebra). Residual assembly walks ordered `Vec`s only, so a solve is
+deterministic and `save`/replay (which re-runs the recorded `solve` line) is
+bit-identical. `sketch close` emits the solved points as a `Shape`. Scope is
+straight segments; arcs/circles and tangent/radius constraints are future work.
 
 ## Known limitations (addressed by the roadmap)
 

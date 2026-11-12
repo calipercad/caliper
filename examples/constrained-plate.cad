@@ -1,0 +1,38 @@
+# constrained-plate.cad — a fully-constrained rectangular plate built with the
+# 2D constraint solver instead of fixed coordinates. The initial point guesses
+# are deliberately rough; the constraints pin the exact geometry, and `solve`
+# finds it. Combine with variables so one number drives the size.
+#
+#   cad run examples/constrained-plate.cad
+
+units mm
+
+set w 80          # target width
+set h 50          # target height
+
+sketch plate
+# rough initial guesses — the solver corrects them
+point bl 0 0
+point br 70 4
+point tr 76 45
+point tl 3 48
+segment bottom bl br
+segment right  br tr
+segment top    tr tl
+segment left   tl bl
+
+# anchor one corner, make it a true rectangle, and set the two side lengths
+constrain fix bl
+constrain horizontal bottom
+constrain horizontal top
+constrain vertical left
+constrain vertical right
+constrain length bottom $w
+constrain length left $h
+
+solve
+sketch close name=plate
+
+measure plate
+render mode=2d
+export svg constrained-plate.svg

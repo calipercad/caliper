@@ -36,6 +36,7 @@ foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
 | 12 | v1.2 | Assemblies & BOM | ✅ complete |
 | 13 | v1.3 | 3D edge fillet & chamfer | ✅ complete |
 | 14 | v1.4 | Outline / stencil text (TrueType `glyf`) | ✅ complete |
+| 15 | v1.5 | 2D constraint sketch solver | ✅ complete |
 
 ---
 
@@ -44,9 +45,9 @@ foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
 The eight-phase roadmap delivered a coherent v1.0. Growth continues as
 independent, checkpointed phases in the same spirit (std-only, text-first,
 every fix gets a test). Phases 9–12 are shipped, below; further candidates
-include true variable-radius / concave 3D fillets, a 2D constraint/parametric
-sketch solver, and a relax-std-only polish phase (WASM/dylib plugin host,
-cargo-fuzz, PDF/3MF).
+include arcs/circles + tangent/radius constraints in the sketcher, true
+variable-radius / concave 3D fillets, loft & sweep-along-path, PDF vector export,
+and a relax-std-only polish phase (WASM/dylib plugin host, cargo-fuzz, 3MF).
 
 ## Phase 9 — Parametric expressions & variables ✅ (v1.1)
 
@@ -169,6 +170,30 @@ em size; a malformed font errors rather than panicking.
 outline glyphs are closed contours; an 'O' has one region + one hole; height
 scales; unmapped chars advance blank; malformed bytes error; `cargo test` green
 (`tests/phase14.rs`).
+
+---
+
+## Phase 15 — 2D constraint sketch solver ✅ (v1.5)
+
+**Objective.** Go from fixed coordinates to a constraint-driven sketcher: say
+what's true geometrically and let the solver find the geometry.
+
+**Delivered.** `geom2d::sketch` — a `Sketch` of points + line segments with
+constraints `fix`, `coincident`, `horizontal`, `vertical`, `parallel`,
+`perpendicular`, `equal`, `distance`, `length`, `angle`, solved by a std-only
+Gauss–Newton / Levenberg–Marquardt iteration (numeric Jacobian + an in-tree
+dense `solve_linear`), then emitted as a `Shape`. Commands `sketch`, `point`,
+`segment`, `constrain`, `solve`, `sketch close`; coordinates/values accept
+expressions; undo/redo and deterministic `save` replay cover sketch state.
+
+**Scope.** Points + straight segments; arcs/circles and tangent/radius
+constraints are future work. Under-constrained → nearest solution; conflicting →
+residual reported, no crash.
+
+**Checkpoint (met).** A constrained 4-point rectangle (`fix` + h/v + two
+`length`) solves to the exact size; perpendicular/equal/distance/angle hit their
+targets; `undo` restores pre-solve coords; `save` replays bit-identically;
+`cargo test` green (`tests/phase15.rs` + `sketch` unit tests).
 
 ---
 

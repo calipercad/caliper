@@ -69,6 +69,17 @@ OPERATIONS (default target = current selection; override with target=<id>)
   (transforms/array/mirror act on a whole group when target= names a group)
   (3D edges: fillet/chamfer a mesh directly, or fillet the 2D profile then extrude)
 
+SKETCH / CONSTRAINTS (constraint-driven 2D geometry)
+  sketch <name>                                    begin a constraint sketch
+  point <name> <x> <y>                             add a point (initial guess; x/y accept expressions)
+  segment <name> <p1> <p2>                         add a line segment between two points
+  constrain <type> <refs...> [value]               add a geometric constraint:
+       fix <p>              coincident <p1> <p2>    horizontal <seg>    vertical <seg>
+       parallel <s1> <s2>   perpendicular <s1> <s2> equal <s1> <s2>
+       distance <p1> <p2> <d>   length <seg> <d>    angle <s1> <s2> <deg>
+  solve                                            solve the sketch (reports residual + DOF)
+  sketch close [open]                              emit the solved sketch as a Shape (closed by default)
+
 SKILLS (parametric generators — run `skills` for the full list + usage)
   skill gear teeth=<n> module=<mm> [pressure=20] [bore=<mm>] [thickness=<mm>]
   skill boxjoint width= depth= height= thickness= [finger=] [lid] [gap=10]
@@ -130,7 +141,7 @@ FILES & AI
   ai <describe it>       Claude copilot: generate → run → inspect → repair loop
   ai edit "<change>"     refine the current scene
   ai fix                 repair the previous AI attempt
-  (needs ANTHROPIC_API_KEY; model via CAD_AI_MODEL; uses curl + jq)
+  (needs ANTHROPIC_API_KEY; model via CAD_AI_MODEL; host via ANTHROPIC_BASE_URL; uses curl + jq)
 
 EXAMPLE
   units mm

@@ -5,7 +5,8 @@
 //! in tests.
 //!
 //! Set `ANTHROPIC_API_KEY` in the environment. The model can be overridden with
-//! `CAD_AI_MODEL` (default: `claude-sonnet-5`).
+//! `CAD_AI_MODEL` (default: `claude-sonnet-5`), and the API host with
+//! `ANTHROPIC_BASE_URL` (optional; default: `https://api.anthropic.com`).
 
 pub mod agent;
 
@@ -17,7 +18,18 @@ use std::io::Write;
 use std::process::{Command, Stdio};
 
 const DEFAULT_MODEL: &str = "claude-sonnet-5";
-const API_URL: &str = "https://api.anthropic.com/v1/messages";
+const DEFAULT_BASE_URL: &str = "https://api.anthropic.com";
+
+/// The Messages API endpoint. The host defaults to [`DEFAULT_BASE_URL`] but can
+/// be overridden with `ANTHROPIC_BASE_URL` (a trailing `/` is trimmed so both
+/// `https://host` and `https://host/` work).
+fn api_url() -> String {
+    let base = match std::env::var("ANTHROPIC_BASE_URL") {
+        Ok(v) if !v.trim().is_empty() => v,
+        _ => DEFAULT_BASE_URL.to_string(),
+    };
+    format!("{}/v1/messages", base.trim_end_matches('/'))
+}
 
 /// One message in a chat conversation.
 #[derive(Clone, Debug)]
@@ -60,6 +72,7 @@ impl Transport for CurlTransport {
             )
         })?;
         let model = std::env::var("CAD_AI_MODEL").unwrap_or_else(|_| DEFAULT_MODEL.to_string());
+        let url = api_url();
 
         let msgs: Vec<String> = messages
             .iter()
@@ -82,7 +95,7 @@ impl Transport for CurlTransport {
                 "-sS",
                 "-X",
                 "POST",
-                API_URL,
+                &url,
                 "-H",
                 "content-type: application/json",
                 "-H",
