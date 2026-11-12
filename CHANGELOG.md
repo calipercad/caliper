@@ -3,6 +3,19 @@
 All notable changes to cad-assist are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## [1.5.1] — Docs & examples
+
+Documentation and example refresh; no code or behavior changes.
+
+- New examples: `bored-block.cad` (3D CSG through-hole → `measure` showing genus
+  1 → `section`) and `sketch-to-part.cad` (constraint sketch → `solve` →
+  `extrude` into a solid).
+- README: the Examples table lists all 12 scripts; the language quick-reference,
+  feature bullets, and status are brought up to date through v1.5 (offset,
+  measurement/section, assemblies/BOM, 3D fillet, outline text, constraint
+  solver).
+- Dropped a stray `export stl` line from the 2D `parametric-flange.cad` example.
+
 ## [1.5.0] — 2D constraint sketch solver
 
 cad-assist becomes a constraint-driven sketcher: build a sketch from points and
