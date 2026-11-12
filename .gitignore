@@ -6,3 +6,5 @@
 *.svg
 *.gcode
 .DS_Store
+*.swp
+*.swo

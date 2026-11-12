@@ -362,11 +362,29 @@ impl Interpreter {
             "right" => Align::Right,
             _ => Align::Left,
         };
-        let shape = text::stroke_text(&s, h, align);
+        // `font=stroke` (default) → single-stroke engraving paths (open contours).
+        // `font=outline path=<ttf>` → filled closed glyphs from a TrueType font.
+        let font = args.str_or("font", "stroke");
+        let (shape, kind) = match font {
+            "stroke" => (text::stroke_text(&s, h, align), "stroke"),
+            "outline" => {
+                let path = args.get_str("path").ok_or_else(|| {
+                    CadError::Arg("text font=outline needs path=<font.ttf>".into())
+                })?;
+                let bytes = std::fs::read(path)?;
+                let seg = args.usize_or("seg", 8)?;
+                (text::outline_text(&bytes, &s, h, align, seg)?, "outline")
+            }
+            other => {
+                return Err(CadError::Arg(format!(
+                    "unknown font '{other}' (stroke|outline)"
+                )))
+            }
+        };
         let name = self.name_or_auto(args, "text");
         self.scene.add(name.clone(), Geometry::Shape(shape));
         self.apply_attrs(&name, args);
-        Ok(format!("text '{name}' \"{s}\" h{h}"))
+        Ok(format!("text '{name}' \"{s}\" h{h} ({kind})"))
     }
 
     fn create_rect(&mut self, args: &Args) -> Result<String> {

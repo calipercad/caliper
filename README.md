@@ -141,6 +141,22 @@ Omit `name=` to export **every** matching entity — handy for laser layouts
 where each panel is its own cut path. SVG/DXF group entities onto layers by
 `role` (cut/score/engrave). Read files back with `import <file.svg|dxf|stl>`.
 
+## Text
+
+`text` produces geometry two ways. The default `font=stroke` lays out the
+built-in single-stroke font as open paths — ideal for pen plotters, drag
+engravers, and laser scoring. `font=outline path=<font.ttf>` parses a TrueType
+font into **filled, cut-out letters** (holes and all) for through-cuts — signage,
+stencils, inlays. No font ships with cad-assist; point `path=` at one you have:
+
+```
+text "OPEN" font=outline path=/System/Library/Fonts/Supplemental/Arial.ttf h=40 role=cut
+offset 0.4            # optional: grow for laser kerf
+export svg sign.svg
+```
+
+TrueType (`glyf`) outlines only; `h` is the em size.
+
 ## AI setup
 
 The `ai` command shells out to `curl` and `jq` (both must be on `PATH`) and

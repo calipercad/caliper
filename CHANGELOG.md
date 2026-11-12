@@ -3,6 +3,30 @@
 All notable changes to cad-assist are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## [1.4.0] — Outline / stencil text
+
+`text` can now emit **filled, cut-out letters** from a TrueType font, alongside
+the existing single-stroke engraving paths — for signage, stencils, and inlays.
+Completes the one item deferred from Phase 2. Still std-only, zero dependencies.
+
+### Added
+- **TrueType `glyf` outline parser** (`geom2d::text::outline`, std-only,
+  big-endian, every read bounds-checked): reads `head`/`maxp`/`hhea`/`hmtx`/
+  `cmap` (formats 0/4/6/12)/`loca`/`glyf`, flattens quadratic Béziers with
+  implied on-curve midpoints, and returns closed-contour glyphs. Holes ('O','A',
+  'e') and composite glyphs (translation components) are handled; windings are
+  normalized so fills/holes are correct regardless of the font's convention.
+- `text "…" font=outline path=<font.ttf> [seg=8]` produces a filled `Shape`
+  (default `font=stroke` is unchanged). Composes with `offset`/`inset`, layers,
+  roles, extrude, and export like any shape.
+- `tests/phase14.rs` synthesizes a minimal in-memory TrueType font (no font is
+  bundled) to exercise the parser end to end.
+
+### Scope
+- TrueType `glyf` outlines only; `.otf`/CFF (PostScript) fonts are rejected with
+  a clear error. No kerning; `h` is the em size. A malformed font returns a
+  `CadError`, never panics.
+
 ## [1.3.0] — 3D edge fillet & chamfer
 
 `fillet` and `chamfer` now round/bevel the edges of a solid `Mesh`, not just the

@@ -26,8 +26,10 @@ VARIABLES & EXPRESSIONS (parametric designs)
   star <points> <r_outer> <r_inner> [name=]        star
   arc <r> <start_deg> <end_deg> [seg=48] [name=]   open circular arc
   path <x1> <y1> <x2> <y2> ... [closed] [name=]    polyline (add `closed`)
-  text "<string>" [h=10] [align=left|center|right] [name=]
-                                                   single-stroke engraving/plot text
+  text "<string>" [h=10] [align=left|center|right] [font=stroke|outline] [path=<ttf>] [seg=8] [name=]
+                                                   text as geometry: font=stroke → single-stroke
+                                                   engraving paths (default); font=outline path=<ttf>
+                                                   → filled cut-out letters from a TrueType font
   (any 2D primitive also accepts [layer=<name>] [role=cut|score|engrave])
 
 3D PRIMITIVES (solids; base sits on the XY plane)

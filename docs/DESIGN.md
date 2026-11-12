@@ -136,12 +136,16 @@ cad-assist/                 workspace root (no package)
   counts entities by part label, falling back to the name with array digits
   stripped. Exporters take an optional member-name filter so a group exports as
   one file.
-- **`geom2d::text`** — single-stroke text for engraving/plotting.
-  `stroke_text(text, height, align)` lays out the built-in in-tree single-stroke
-  vector font (`geom2d::text::font`, `const` data for printable ASCII) into a
-  `Shape` of **open** contours (one per pen stroke). Open, sub-triangle text is
-  for render/export only and is correctly ignored/rejected by the filled-region
-  ops (`area`/`regions`/`extrude`).
+- **`geom2d::text`** — text as geometry, two forms:
+  - `stroke_text(text, height, align)` lays out the built-in in-tree single-stroke
+    vector font (`geom2d::text::font`, `const` data for printable ASCII) into a
+    `Shape` of **open** contours (one per pen stroke) — for engraving/plotting;
+    correctly ignored by the filled-region ops (`area`/`regions`/`extrude`).
+  - `outline_text(bytes, text, height, align, seg)` (`geom2d::text::outline`)
+    parses a TrueType font and returns **filled, closed** glyph contours for
+    through-cuts — a std-only, bounds-checked `glyf` reader (`head`/`maxp`/
+    `hhea`/`hmtx`/`cmap`/`loca`/`glyf`) that flattens quadratic Béziers and
+    winding-normalizes so holes are correct. TrueType only; `.otf`/CFF rejected.
 - **`Units { Mm, Cm, In }`** — a document-level unit. Exporters scale by
   `to_mm()` so output is always physically correct regardless of authoring unit.
 

@@ -9,6 +9,9 @@
 //! reject it.
 
 pub mod font;
+pub mod outline;
+
+pub use outline::outline_text;
 
 use crate::geom2d::{Contour, Shape};
 use crate::math::Vec2;

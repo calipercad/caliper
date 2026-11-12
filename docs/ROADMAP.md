@@ -35,6 +35,7 @@ foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
 | 11 | v1.2 | Measurement & analysis | ✅ complete |
 | 12 | v1.2 | Assemblies & BOM | ✅ complete |
 | 13 | v1.3 | 3D edge fillet & chamfer | ✅ complete |
+| 14 | v1.4 | Outline / stencil text (TrueType `glyf`) | ✅ complete |
 
 ---
 
@@ -43,8 +44,9 @@ foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
 The eight-phase roadmap delivered a coherent v1.0. Growth continues as
 independent, checkpointed phases in the same spirit (std-only, text-first,
 every fix gets a test). Phases 9–12 are shipped, below; further candidates
-include outline/stencil text (TrueType `glyf`) and a relax-std-only polish phase
-(WASM/dylib plugin host, cargo-fuzz, PDF/3MF).
+include true variable-radius / concave 3D fillets, a 2D constraint/parametric
+sketch solver, and a relax-std-only polish phase (WASM/dylib plugin host,
+cargo-fuzz, PDF/3MF).
 
 ## Phase 9 — Parametric expressions & variables ✅ (v1.1)
 
@@ -147,6 +149,29 @@ unchanged; a non-convex solid errors; `cargo test` green (`tests/phase13.rs`).
 
 ---
 
+## Phase 14 — Outline / stencil text ✅ (v1.4)
+
+**Objective.** Cut-out letters (filled glyphs) from a real font, completing the
+one item deferred from Phase 2 — the companion to single-stroke engraving text.
+
+**Delivered.** A std-only, bounds-checked TrueType `glyf` parser
+(`geom2d::text::outline`): `head`/`maxp`/`hhea`/`hmtx`/`cmap` (0/4/6/12)/`loca`/
+`glyf`, quadratic Bézier flattening with implied on-curve midpoints, composite
+glyphs (translation), winding-normalized so holes are correct. `text "…"
+font=outline path=<ttf> [seg=]` yields a filled `Shape` that composes with
+`offset` (stencil bridges), layers/roles, extrude, and export. Default
+`font=stroke` unchanged.
+
+**Scope.** TrueType `glyf` only (`.otf`/CFF rejected cleanly); no kerning; `h` =
+em size; a malformed font errors rather than panicking.
+
+**Checkpoint (met).** A synthesized in-memory font (and real system fonts) parse;
+outline glyphs are closed contours; an 'O' has one region + one hole; height
+scales; unmapped chars advance blank; malformed bytes error; `cargo test` green
+(`tests/phase14.rs`).
+
+---
+
 ## Phase 0 — Foundation ✅ (v0.1)
 
 **Delivered.** Geometry kernel (`Vec/Mat`, `Contour`/`Shape`, `Mesh`,
@@ -230,8 +255,8 @@ conservative fallback that reports non-manifold input rather than emitting junk.
 **Work items.**
 - [x] `geom2d/text/` with an embedded single-stroke font + `stroke_text()`.
 - [x] `text` command (stroke path); alignment (`align=left|center|right`) & spacing.
-- [ ] Optional `glyf` outline parser → filled shapes for cutting. *(deferred — a
-      self-contained follow-up; stroke text is the shipped primary path.)*
+- [x] Optional `glyf` outline parser → filled shapes for cutting. *(delivered in
+      Phase 14 / v1.4 — `text … font=outline path=<ttf>`.)*
 - [x] `Entity.layer` / `role`; `layer <name>` and `role <cut|score|engrave>` cmds.
 - [x] SVG layered/colored export; DXF named layers.
 - [x] Tests: stroke text bbox/alignment, layered SVG structure, DXF layers.
