@@ -1,0 +1,31 @@
+# sketch-to-part.cad — drive a 3D part from a *constraint sketch*. The gusset
+# outline is defined by geometric constraints (not fixed coordinates); `solve`
+# finds the exact triangle, then it's extruded into a solid and measured. Shows
+# the constraint solver feeding the rest of the pipeline.
+#
+#   cad run examples/sketch-to-part.cad
+
+units mm
+
+set thickness 6
+
+sketch gusset
+# rough initial guesses; the constraints pin the exact right triangle
+point a 0 0
+point b 45 3
+point c 2 28
+segment base a b
+segment vert a c
+segment hyp  b c
+constrain fix a
+constrain horizontal base
+constrain vertical vert
+constrain length base 50
+constrain length vert 30
+solve
+sketch close name=gusset        # → a 50×30 right triangle
+
+extrude $thickness target=gusset name=part
+measure part
+render mode=iso
+export stl gusset.stl name=part

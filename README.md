@@ -20,9 +20,13 @@ cutters, pen plotters, CNC, and 3D printers**.
 - **Terminal-first.** Everything is text: scriptable, diffable, pipeable,
   reproducible. A design is a `.cad` file you can version-control.
 - **Real geometry kernel.** Exact-integer 2D booleans, true holed extrusion,
-  BSP mesh CSG (`subtract`/`union`/`intersect`), fillet/chamfer, shell,
-  single-stroke text, arrays/mirror/groups, and dimensioning — with manifold
-  verification on 3D output.
+  BSP mesh CSG (`subtract`/`union`/`intersect`), 2D & 3D fillet/chamfer, polygon
+  `offset`/`inset`, shell, stroke **and** TrueType outline text, arrays/mirror/
+  groups, dimensioning, mass-property `measure`/`interfere`/`section`, and a
+  **2D constraint solver** — with manifold verification on 3D output.
+- **Parametric & constraint-driven.** `set` variables and `${…}` expressions
+  drive any dimension; the `sketch`/`constrain`/`solve` solver finds geometry
+  from geometric relations (perpendicular, equal, distance, …).
 - **20 parametric "skills."** Gears, sprockets, pulleys, cams, gridfinity bins,
   enclosures, knobs, monograms, box templates, living hinges… driven by real
   engineering math. See [docs/SKILLS.md](docs/SKILLS.md); extend with your own
@@ -91,13 +95,16 @@ Run `cad help` for the full reference. The essentials:
 
 | Group | Commands |
 |---|---|
-| 2D | `rect w h [rx=] [name=]`, `circle r`, `polygon sides r`, `star pts ro ri`, `arc r a0 a1`, `path x1 y1 … [closed]`, `text "…" [h=]` |
+| 2D | `rect w h [rx=] [name=]`, `circle r`, `polygon sides r`, `star pts ro ri`, `arc r a0 a1`, `path x1 y1 … [closed]`, `text "…" [h=] [font=stroke\|outline path=<ttf>]` |
 | 3D | `box w d h`, `cylinder r h`, `sphere r`, `cone r h` |
-| Ops | `extrude h`, `revolve`, `translate`, `rotate`, `scale`, `array`, `mirror`, `group`/`ungroup`, `fillet`, `chamfer`, `shell`, `dim` |
+| Ops | `extrude h`, `revolve`, `translate`, `rotate`, `scale`, `array`, `mirror`, `group`/`ungroup`, `fillet`, `chamfer` (2D corners **or** 3D edges), `offset`/`inset`, `shell`, `dim`, `section` |
 | Booleans | `union a b`, `subtract a b`, `intersect a b`, `xor a b` (2D shapes **or** 3D meshes, auto-dispatched) |
+| Variables | `set w 40`, `unset w`, `vars` — then `$w` / `${w*2}` in any numeric arg |
+| Sketch | `sketch <name>`, `point`, `segment`, `constrain <type> …`, `solve`, `sketch close` (2D constraint solver) |
+| Measure | `measure [name]`, `interfere [a b]`, `bom [group=]`, `part`, `assembly` |
 | Skills | `skill <name> …` (see `skills`, [SKILLS.md](docs/SKILLS.md)) |
 | Scene | `units`, `select`, `delete`, `clear`, `list`, `bbox`, `undo`, `redo` |
-| I/O | `render [mode=wire\|hlr\|shade] [view=] [layout=views]`, `export <fmt> <path>`, `import <file>`, `save`, `load`, `ai <text>` |
+| I/O | `render [mode=wire\|hlr\|shade] [view=] [layout=views]`, `export <fmt> <path> [group=]`, `import <file>`, `save`, `load`, `ai <text>` |
 
 ## Skills — the parametric library
 
@@ -181,13 +188,24 @@ Runnable scripts live in [`examples/`](examples):
 |---|---|---|
 | `keychain-tag.cad` | rounded tag + hole, Cricut/vinyl | SVG |
 | `laser-box.cad` | finger-jointed enclosure, flat-packed | SVG + DXF |
+| `honeycomb-panel.cad` | ventilated hex grille | SVG + DXF |
+| `gasket.cad` | bored plate grown by a 2D **offset** to a uniform rim | SVG + DXF |
 | `print-gear.cad` | involute gear, bored, extruded | STL |
 | `lathe-knob.cad` | solid of revolution from a profile | STL |
-| `honeycomb-panel.cad` | ventilated hex grille | SVG + DXF |
+| `rounded-box.cad` | **3D edge fillet** on every rim of a box | STL |
+| `bored-block.cad` | **3D CSG** through-hole + **measure** (genus 1) + **section** | STL + SVG |
+| `parametric-flange.cad` | **variables** drive a bored flange + bolt ring | SVG + DXF |
+| `bolt-flange-assembly.cad` | **parts, assembly & BOM** (polar-arrayed bolts) | SVG |
+| `constrained-plate.cad` | **constraint solver** — rough guesses → exact rectangle | SVG |
+| `sketch-to-part.cad` | **constraint sketch → extrude** into a 3D solid | STL |
 
 ```sh
 cad run examples/print-gear.cad
+cad run examples/sketch-to-part.cad
 ```
+
+Cut-out text needs a font you supply — see [Text](#text) above:
+`text "OPEN" font=outline path=<your-font.ttf> h=40 role=cut`.
 
 ## Architecture
 
@@ -206,17 +224,20 @@ each phase with its own design and checkpoint.
 
 ## Status
 
-**v1.0 — the roadmap is complete.** Eight shipped milestones: robust 2D
-geometry (exact-integer booleans, holed extrusion, fillets), text + layered
-cut/score/engrave export, 3D mesh CSG + shell, drafting & rendering (HLR,
-shaded, multi-view, arrays, dimensions), a 20-skill parametric library, the AI
-copilot loop, interop (import, undo, watch, richer export), and this release
-(the `plugin` surface, randomized property tests, CI, packaging). All tested
-end to end — see [`docs/ROADMAP.md`](docs/ROADMAP.md) and
+**v1.5 — 15 shipped milestones, all tested end to end.** v1.0 completed the
+original eight-phase roadmap (robust 2D geometry, text + layered cut/score/
+engrave export, 3D mesh CSG + shell, drafting & rendering, a 20-skill parametric
+library, the AI copilot loop, interop, and the `plugin` surface + property tests
++ CI + packaging). Since then: parametric **variables & expressions** (v1.1),
+2D **offset/inset** (v1.2), **measurement & analysis** — mass properties,
+interference, cross-section (v1.2), **assemblies & BOM** (v1.2), **3D edge
+fillet/chamfer** (v1.3), TrueType **outline/stencil text** (v1.4), and the **2D
+constraint sketch solver** (v1.5). See [`docs/ROADMAP.md`](docs/ROADMAP.md) and
 [`CHANGELOG.md`](CHANGELOG.md).
 
-Post-1.0 ideas (held back to keep the kernel zero-dependency): a WASM/dylib
-plugin host, coverage-guided fuzzing, and a generated docs site.
+Still zero-dependency, `std`-only. Candidate next steps: arcs/circles + tangent/
+radius constraints in the sketcher, loft & sweep-along-path, PDF vector export,
+and (relaxing std-only) a WASM/dylib plugin host + coverage-guided fuzzing.
 
 ## License
 

@@ -1,0 +1,20 @@
+# bored-block.cad — a solid block with a through-hole (3D CSG), then measured
+# and sliced. Shows mesh booleans, mass properties (note genus 1 for the hole),
+# and an axis-aligned cross-section producing a 2D outline with a matching hole.
+#
+#   cad run examples/bored-block.cad
+
+units mm
+
+box 60 40 20 name=blk
+cylinder 8 30 name=bore
+translate 30 20 -5 target=bore          # center the drill, poke through
+subtract blk bore name=block            # block with a real through-hole
+
+measure block                            # volume, surface area, closed? genus 1
+section block axis=z at=10 name=slice    # cut at mid-height → rectangle + hole
+measure slice
+
+render mode=hlr
+export stl block.stl name=block
+export svg slice.svg name=slice
