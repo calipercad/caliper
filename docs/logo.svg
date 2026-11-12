@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Caliper">
+  <style>
+    .ink { stroke: #13161c; }
+    @media (prefers-color-scheme: dark) { .ink { stroke: #e7eaf0; } }
+  </style>
+  <!-- open caliper legs from a top pivot -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path class="ink" d="M32 11 L14 47" stroke-width="5.5"/>
+    <path class="ink" d="M32 11 L50 47" stroke-width="5.5"/>
+    <!-- dimension annotation: the measured span -->
+    <path stroke="#e8b765" stroke-width="2.6" d="M14 47 V55 M50 47 V55 M13 55 H51"/>
+  </g>
+  <!-- pivot -->
+  <circle cx="32" cy="11" r="5.5" fill="#e8b765"/>
+</svg>

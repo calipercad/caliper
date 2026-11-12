@@ -4,6 +4,7 @@
 *.obj
 *.dxf
 *.svg
+!docs/logo.svg
 *.gcode
 .DS_Store
 *.swp
