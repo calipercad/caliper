@@ -1,4 +1,6 @@
-# Caliper
+<p align="center"><img src="docs/logo.svg" width="96" height="96" alt="Caliper"></p>
+
+<h1 align="center">Caliper</h1>
 
 A terminal-native, AI-assisted **parametric CAD toolkit** written in pure Rust.
 No GUI, no cloud, no build-time downloads — it compiles offline and stays
