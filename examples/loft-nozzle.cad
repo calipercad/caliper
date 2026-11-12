@@ -1,0 +1,11 @@
+# Loft — a round-to-square transition duct.
+# Stacks two 2D profiles bottom→top and skins a watertight solid between them.
+
+circle 20 name=bottom          # round inlet (centered at origin)
+rect 34 34 name=top            # square outlet
+translate -17 -17 0 target=top # center it over the inlet
+loft bottom top height=45 name=duct
+
+render mode=hlr
+measure duct                   # volume · surface · genus
+export stl duct.stl name=duct

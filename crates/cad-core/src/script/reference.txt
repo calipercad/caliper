@@ -41,6 +41,7 @@ VARIABLES & EXPRESSIONS (parametric designs)
 OPERATIONS (default target = current selection; override with target=<id>)
   extrude <height> [target=] [name=]               2D shape -> 3D solid
   revolve [seg=48] [target=] [name=]               revolve a profile about Z
+  loft <a> <b> [c ...] [height=10] [seg=] [name=]  skin a solid through 2+ stacked 2D profiles
   translate <x> <y> [z] [target=]                  move
   rotate <deg> [axis=x|y|z] [about=center|origin] [target=]
   scale <factor> [about=center|origin] [target=]

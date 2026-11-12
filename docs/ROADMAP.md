@@ -268,6 +268,29 @@ still load.
 
 ---
 
+## Phase 19 — Loft ✅ (v1.9)
+
+**Objective.** Build solids that transition between cross-sections — the last
+missing member of the surfacing set (extrude · revolve · sweep · **loft**).
+
+**Delivered.** `loft a b [c ...] [height=H] [seg=N] [name=out]` skins a watertight
+solid through 2+ stacked 2D profiles. Each profile is resampled to a common vertex
+count by arc length (`geom3d::resample_closed`), forced CCW, and rotation-aligned
+to the previous ring to minimize twist; adjacent rings are skinned and the end
+profiles capped with the same watertight routine `extrude` uses
+(`triangulate_with_holes`), so the output is a verified closed 2-manifold.
+`examples/loft-nozzle.cad` demos a round→square transition duct.
+
+**Scope.** `std`-only, zero crates. v1 uses each profile's outer contour — holes
+are ignored (documented limitation, like bevel's convex-only).
+
+**Checkpoint (met).** `crates/cad-core/tests/phase19.rs` — equal squares → prism
+(volume = area·h), frustum volume within prism bounds, mismatched vertex counts
+resample cleanly, 3-section stack, and error paths — plus `cargo test`/`fmt`/
+`clippy` green and the example rendering a closed (χ=2) solid.
+
+---
+
 ## Phase 0 — Foundation ✅ (v0.1)
 
 **Delivered.** Geometry kernel (`Vec/Mat`, `Contour`/`Shape`, `Mesh`,

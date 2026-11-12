@@ -738,3 +738,165 @@ pub fn revolve(profile: &[Vec2], seg: usize) -> Result<Mesh> {
     }
     Ok(m)
 }
+
+/// Loft (skin) a watertight solid through a stack of 2D `profiles`, each placed
+/// at the matching height in `zs` (ascending). Adjacent profiles are joined by a
+/// triangle skin and the first and last are capped, so the surface closes into a
+/// 2-manifold — think nozzles, ducts, tapered housings, blended adapters.
+///
+/// Every profile is resampled to a common vertex count (`seg`, else the largest
+/// input count, min 3) by arc length, forced counter-clockwise, and rotation-
+/// aligned to the previous ring to minimize twist. v1 uses each profile's outer
+/// loop only — interior holes are ignored.
+pub fn loft(profiles: &[&[Vec2]], zs: &[f64], seg: usize) -> Result<Mesh> {
+    if profiles.len() < 2 {
+        return Err(CadError::Geometry("loft needs at least 2 profiles".into()));
+    }
+    if zs.len() != profiles.len() {
+        return Err(CadError::Geometry(
+            "loft: zs length must match the profile count".into(),
+        ));
+    }
+    for p in profiles {
+        if p.len() < 3 {
+            return Err(CadError::Geometry(
+                "loft profile needs at least 3 points".into(),
+            ));
+        }
+    }
+
+    // Common vertex count across every ring.
+    let n = seg
+        .max(profiles.iter().map(|p| p.len()).max().unwrap_or(3))
+        .max(3);
+
+    // Resample → CCW → align each ring to the previous one.
+    let mut rings: Vec<Vec<Vec2>> = Vec::with_capacity(profiles.len());
+    for (k, p) in profiles.iter().enumerate() {
+        let mut ring = resample_closed(p, n);
+        if signed_area_pts(&ring) < 0.0 {
+            ring.reverse();
+        }
+        if k > 0 {
+            let prev = rings[k - 1].clone();
+            align_ring(&mut ring, &prev);
+        }
+        rings.push(ring);
+    }
+
+    // One shared vertex ring per profile, at its z.
+    let mut m = Mesh::new();
+    let mut base: Vec<usize> = Vec::with_capacity(rings.len());
+    for (ring, &z) in rings.iter().zip(zs) {
+        base.push(m.verts.len());
+        for &pt in ring {
+            m.verts.push(Vec3::new(pt.x, pt.y, z));
+        }
+    }
+
+    // Skin walls between adjacent rings (CCW rings → outward normals, matching
+    // the extrude wall formula).
+    for k in 0..rings.len() - 1 {
+        let (b, t) = (base[k], base[k + 1]);
+        for i in 0..n {
+            let ni = (i + 1) % n;
+            m.tris.push([b + i, b + ni, t + ni]);
+            m.tris.push([b + i, t + ni, t + i]);
+        }
+    }
+
+    // Caps: first ring faces -Z (reversed winding), last ring faces +Z. Reuse
+    // the extrude cap routine; with no holes the returned ring equals the input,
+    // so cap verts coincide with the skin's ring verts (watertight).
+    let (_r0, tris0) = triangulate_with_holes(&rings[0], &[])?;
+    let b0 = base[0];
+    for tr in &tris0 {
+        m.tris.push([b0 + tr[0], b0 + tr[2], b0 + tr[1]]);
+    }
+    let last = rings.len() - 1;
+    let (_rl, trisl) = triangulate_with_holes(&rings[last], &[])?;
+    let bl = base[last];
+    for tr in &trisl {
+        m.tris.push([bl + tr[0], bl + tr[1], bl + tr[2]]);
+    }
+
+    Ok(m)
+}
+
+/// Signed area of a closed polygon (counter-clockwise positive), shoelace.
+fn signed_area_pts(p: &[Vec2]) -> f64 {
+    let n = p.len();
+    if n < 3 {
+        return 0.0;
+    }
+    let mut a = 0.0;
+    for i in 0..n {
+        a += p[i].cross(p[(i + 1) % n]);
+    }
+    a * 0.5
+}
+
+/// Resample a closed polygon to exactly `n` points equally spaced by arc length.
+fn resample_closed(points: &[Vec2], n: usize) -> Vec<Vec2> {
+    let n = n.max(3);
+    let m = points.len();
+    let mut seg_len = Vec::with_capacity(m);
+    let mut total = 0.0;
+    for i in 0..m {
+        let l = (points[(i + 1) % m] - points[i]).len();
+        seg_len.push(l);
+        total += l;
+    }
+    if total <= EPS {
+        return vec![points[0]; n];
+    }
+    let step = total / n as f64;
+    let mut out = Vec::with_capacity(n);
+    let mut i = 0usize; // current edge
+    let mut acc = 0.0; // arc length at the start of edge i
+    for k in 0..n {
+        let target = k as f64 * step;
+        while i < m && acc + seg_len[i] < target {
+            acc += seg_len[i];
+            i += 1;
+        }
+        if i >= m {
+            out.push(points[0]);
+            continue;
+        }
+        let t = if seg_len[i] > EPS {
+            (target - acc) / seg_len[i]
+        } else {
+            0.0
+        };
+        out.push(points[i].lerp(points[(i + 1) % m], t));
+    }
+    out
+}
+
+/// Rotate `ring`'s start index to best match `prev` (minimize summed squared
+/// distance), reducing twist between adjacent loft sections. Both are length `n`.
+fn align_ring(ring: &mut [Vec2], prev: &[Vec2]) {
+    let n = ring.len();
+    if n == 0 || prev.len() != n {
+        return;
+    }
+    let mut best_off = 0usize;
+    let mut best = f64::INFINITY;
+    for off in 0..n {
+        let mut sum = 0.0;
+        for i in 0..n {
+            sum += (ring[(i + off) % n] - prev[i]).len_sq();
+            if sum >= best {
+                break;
+            }
+        }
+        if sum < best {
+            best = sum;
+            best_off = off;
+        }
+    }
+    if best_off != 0 {
+        ring.rotate_left(best_off);
+    }
+}

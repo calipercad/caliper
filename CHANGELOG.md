@@ -3,6 +3,23 @@
 All notable changes to Caliper are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## [1.9.0] — Loft
+
+Skin a watertight solid through a stack of 2D profiles — the surfacing set is now
+extrude · revolve · sweep · **loft**.
+
+- **New:** `loft a b [c ...] [height=H] [seg=N] [name=out]` stacks 2+ referenced
+  2D profiles bottom→top (evenly spaced over `height`, default 10mm) and skins a
+  closed solid between them. Great for nozzles, ducts, tapered housings, blended
+  adapters.
+- Profiles are resampled to a common vertex count by arc length, forced CCW, and
+  rotation-aligned to minimize twist; end profiles are capped with the same
+  watertight routine `extrude` uses, so the result is a verified 2-manifold.
+- Kernel: `geom3d::loft` (+ `resample_closed`, ring alignment). Registered for
+  "did you mean" and undo. v1 uses each profile's outer contour (holes ignored).
+- Example: `examples/loft-nozzle.cad` (round inlet → square outlet). No new deps;
+  `std`-only, zero crates unchanged.
+
 ## [1.8.0] — Caliper: open-core licensing & brand
 
 The toolkit is now **Caliper**. This release is about making it a real project

@@ -45,7 +45,7 @@ Caliper/                 workspace root (no package)
 │   │       │   ├── offset.rs   polygon offset / inset (round/miter/bevel joins)
 │   │       │   ├── sketch.rs   2D constraint solver (Gauss–Newton) → Shape
 │   │       │   └── text/       single-stroke font + TrueType glyf outline text
-│   │       ├── geom3d.rs       Mesh + primitives, holed extrude, revolve, mass props
+│   │       ├── geom3d.rs       Mesh + primitives, holed extrude, revolve, loft, mass props
 │   │       ├── geom3d/
 │   │       │   ├── csg.rs      BSP mesh booleans + shell (3D CSG)
 │   │       │   └── section.rs  axis-aligned mesh cross-section → 2D Shape
@@ -109,8 +109,9 @@ Caliper/                 workspace root (no package)
   `cuboid`, `cylinder`, `cone`, `sphere`. Measurement: `signed_volume`,
   `surface_area`, `centroid` (volume-weighted via signed tetrahedra). Free
   functions: `extrude` (holed caps via keyhole bridging over `regions()`, welded
-  to one shared vertex ring), `revolve`, `triangulate_with_holes`, `triangulate`
-  (ear-clipping with a fan fallback).
+  to one shared vertex ring), `revolve`, `loft` (skin N arc-length-resampled,
+  twist-aligned rings; shared caps → watertight), `triangulate_with_holes`,
+  `triangulate` (ear-clipping with a fan fallback).
 - **`geom3d::section`** — `section(mesh, axis, at)` slices a mesh by an
   axis-aligned plane: marching-triangles cut segments are welded on a grid and
   walked into closed loops (a 2D `Shape`); a dangling endpoint (open/non-manifold

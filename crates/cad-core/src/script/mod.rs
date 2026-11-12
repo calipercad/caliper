@@ -213,6 +213,7 @@ impl Interpreter {
             // ---- operations ----
             "extrude" => self.op_extrude(&args),
             "revolve" => self.op_revolve(&args),
+            "loft" => self.op_loft(&args),
             "translate" => self.op_translate(&args),
             "rotate" => self.op_rotate(&args),
             "scale" => self.op_scale(&args),
@@ -770,6 +771,51 @@ impl Interpreter {
         let name = args.name().unwrap_or_else(|| format!("{src_name}_rev"));
         self.scene.add(name.clone(), Geometry::Mesh(mesh));
         Ok(format!("revolved '{src_name}' → '{name}'"))
+    }
+
+    /// `loft a b [c ...] [height=H] [seg=N] [name=out]` — skin a solid through
+    /// 2+ stacked 2D profiles, evenly spaced from z=0 to `height`.
+    fn op_loft(&mut self, args: &Args) -> Result<String> {
+        // Positional profile names, in bottom→top order.
+        let mut names: Vec<String> = Vec::new();
+        let mut i = 0;
+        while let Some(s) = args.pos_str(i) {
+            names.push(s.to_string());
+            i += 1;
+        }
+        if names.len() < 2 {
+            return Err(CadError::Arg(
+                "loft needs at least 2 profiles: loft a b [c ...] [height=H]".into(),
+            ));
+        }
+        // Resolve each to a 2D shape's outer contour.
+        let mut profiles: Vec<Vec<Vec2>> = Vec::with_capacity(names.len());
+        for nm in &names {
+            let e = self.scene.resolve(Some(nm))?;
+            match &e.geom {
+                Geometry::Shape(s) => {
+                    let c = s.contours.first().ok_or_else(|| {
+                        CadError::Geometry(format!("loft profile '{nm}' has no contour"))
+                    })?;
+                    profiles.push(c.points.clone());
+                }
+                Geometry::Mesh(_) => {
+                    return Err(CadError::Arg(format!(
+                        "loft profile '{nm}' must be a 2D shape"
+                    )))
+                }
+            }
+        }
+        let height = args.f64_or("height", 10.0)?;
+        let seg = args.usize_or("seg", 0)?; // 0 → use the largest input count
+        let k = profiles.len();
+        // Even Z spacing across the stack.
+        let zs: Vec<f64> = (0..k).map(|j| height * j as f64 / (k - 1) as f64).collect();
+        let refs: Vec<&[Vec2]> = profiles.iter().map(|p| p.as_slice()).collect();
+        let mesh = geom3d::loft(&refs, &zs, seg)?;
+        let name = args.name().unwrap_or_else(|| format!("{}_loft", names[0]));
+        self.scene.add(name.clone(), Geometry::Mesh(mesh));
+        Ok(format!("lofted {k} profiles → '{name}'"))
     }
 
     /// Apply a transform to every named entity (a group's members or a single
@@ -2198,6 +2244,7 @@ pub fn command_names() -> &'static [&'static str] {
         // operations
         "extrude",
         "revolve",
+        "loft",
         "translate",
         "rotate",
         "scale",
@@ -2324,6 +2371,7 @@ fn is_modifying(cmd: &str) -> bool {
             | "cone"
             | "extrude"
             | "revolve"
+            | "loft"
             | "translate"
             | "rotate"
             | "scale"

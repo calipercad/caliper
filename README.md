@@ -151,7 +151,7 @@ Run `cad help` for the full reference. The essentials:
 |---|---|
 | 2D | `rect w h [rx=] [name=]`, `circle r`, `polygon sides r`, `star pts ro ri`, `arc r a0 a1`, `path x1 y1 … [closed]`, `text "…" [h=] [font=stroke\|outline path=<ttf>]` |
 | 3D | `box w d h`, `cylinder r h`, `sphere r`, `cone r h` |
-| Ops | `extrude h`, `revolve`, `translate`, `rotate`, `scale`, `array`, `mirror`, `group`/`ungroup`, `fillet`, `chamfer` (2D corners **or** 3D edges), `offset`/`inset`, `shell`, `dim`, `section` |
+| Ops | `extrude h`, `revolve`, `loft`, `translate`, `rotate`, `scale`, `array`, `mirror`, `group`/`ungroup`, `fillet`, `chamfer` (2D corners **or** 3D edges), `offset`/`inset`, `shell`, `dim`, `section` |
 | Booleans | `union a b`, `subtract a b`, `intersect a b`, `xor a b` (2D shapes **or** 3D meshes, auto-dispatched) |
 | Variables | `set w 40`, `unset w`, `vars` — then `$w` / `${w*2}` in any numeric arg |
 | Sketch | `sketch <name>`, `point`, `segment`, `circle`, `arc`, `constrain <type> …` (incl. `radius`/`tangent`/`concentric`/`point_on`), `solve`, `sketch close` |
@@ -280,20 +280,21 @@ each phase with its own design and checkpoint.
 
 ## Status
 
-**v1.5 — 15 shipped milestones, all tested end to end.** v1.0 completed the
+**v1.9 — all shipped milestones tested end to end.** v1.0 completed the
 original eight-phase roadmap (robust 2D geometry, text + layered cut/score/
 engrave export, 3D mesh CSG + shell, drafting & rendering, a 20-skill parametric
 library, the AI copilot loop, interop, and the `plugin` surface + property tests
 + CI + packaging). Since then: parametric **variables & expressions** (v1.1),
-2D **offset/inset** (v1.2), **measurement & analysis** — mass properties,
-interference, cross-section (v1.2), **assemblies & BOM** (v1.2), **3D edge
-fillet/chamfer** (v1.3), TrueType **outline/stencil text** (v1.4), and the **2D
-constraint sketch solver** (v1.5). See [`docs/ROADMAP.md`](docs/ROADMAP.md) and
-[`CHANGELOG.md`](CHANGELOG.md).
+2D **offset/inset**, **measurement & analysis**, **assemblies & BOM** (v1.2),
+**3D edge fillet/chamfer** (v1.3), TrueType **outline/stencil text** (v1.4), the
+**2D constraint sketch solver** + **arcs/circles & curve constraints** (v1.5–1.6),
+a **UX overhaul** — templates, quieter AI, friendly REPL, live TUI (v1.7), the
+**Caliper rebrand + open-core licensing** (Apache-2.0 + CLA, v1.8), and **loft** —
+skinning solids through stacked 2D profiles (v1.9). See
+[`docs/ROADMAP.md`](docs/ROADMAP.md) and [`CHANGELOG.md`](CHANGELOG.md).
 
-Still zero-dependency, `std`-only. Candidate next steps: arcs/circles + tangent/
-radius constraints in the sketcher, loft & sweep-along-path, PDF vector export,
-and (relaxing std-only) a WASM/dylib plugin host + coverage-guided fuzzing.
+Still zero-dependency, `std`-only. Candidate next steps: non-convex fillets,
+PDF vector export, sweep-along-path, and a hosted **Caliper Cloud** tier.
 
 ## Contributing
 
