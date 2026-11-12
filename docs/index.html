@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cad-assist — terminal-native parametric CAD</title>
+<meta name="description" content="A terminal-native, AI-assisted parametric CAD toolkit in pure Rust. Zero dependencies: exact 2D booleans, 3D CSG, a constraint solver, an AI copilot, and a live terminal preview.">
+<style>
+  :root{
+    --bg:#0c0e12; --panel:#13161c; --panel2:#171b22; --ink:#e7eaf0; --muted:#9aa4b2;
+    --line:#242a33; --accent:#e8b765; --accent2:#6fd3c6; --code:#0a0c10; --radius:14px;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:light){
+    :root{--bg:#f7f8fa;--panel:#ffffff;--panel2:#f0f2f6;--ink:#161a20;--muted:#5a6572;
+      --line:#e3e7ee;--accent:#b5781a;--accent2:#1a8f82;--code:#0d1117;}
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+    line-height:1.55;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:980px;margin:0 auto;padding:0 20px}
+  .mono{font-family:var(--mono)}
+  /* hero */
+  header{padding:76px 0 36px;text-align:center}
+  .tag{display:inline-block;font-family:var(--mono);font-size:12px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--accent);border:1px solid var(--line);
+    border-radius:999px;padding:5px 12px;margin-bottom:22px}
+  h1{font-size:clamp(40px,8vw,68px);margin:.1em 0 .15em;letter-spacing:-.02em;font-weight:800}
+  h1 .dot{color:var(--accent)}
+  .lede{font-size:clamp(17px,2.4vw,21px);color:var(--muted);max-width:40ch;margin:0 auto 10px}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:26px}
+  .btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .btn{font-family:var(--mono);font-size:14px;padding:11px 18px;border-radius:10px;
+    border:1px solid var(--line);background:var(--panel);color:var(--ink);display:inline-block}
+  .btn:hover{text-decoration:none;border-color:var(--accent)}
+  .btn.primary{background:var(--accent);color:#17120a;border-color:var(--accent);font-weight:700}
+  /* terminal */
+  .screen{background:var(--code);border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px;overflow:auto;margin:34px 0 8px;box-shadow:0 16px 40px rgba(0,0,0,.28)}
+  .screen .bar{display:flex;gap:7px;margin-bottom:12px}
+  .screen .bar i{width:11px;height:11px;border-radius:50%;background:#3a3f49;display:inline-block}
+  .screen pre{margin:0;font-family:var(--mono);color:#cfe8e3;font-size:11px;line-height:1.08;
+    white-space:pre;letter-spacing:.5px}
+  .caption{text-align:center;color:var(--muted);font-size:13px;margin:0 0 50px}
+  /* sections */
+  section{padding:30px 0}
+  h2{font-size:14px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);
+    font-family:var(--mono);margin:0 0 20px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+  .card h3{margin:0 0 6px;font-size:16px}
+  .card p{margin:0;color:var(--muted);font-size:14px}
+  pre.code{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px;overflow:auto;font-family:var(--mono);font-size:13px;line-height:1.6}
+  pre.code .c{color:var(--muted)}
+  pre.code .k{color:var(--accent2)}
+  .time{border-left:2px solid var(--line);margin-left:6px;padding-left:22px}
+  .time .row{position:relative;padding:9px 0}
+  .time .row::before{content:"";position:absolute;left:-28px;top:16px;width:9px;height:9px;
+    border-radius:50%;background:var(--accent);border:2px solid var(--bg)}
+  .time .v{font-family:var(--mono);color:var(--accent);font-size:13px;margin-right:10px}
+  .time .t{color:var(--muted);font-size:14px}
+  footer{border-top:1px solid var(--line);margin-top:40px;padding:30px 0 60px;
+    color:var(--muted);font-size:13px;text-align:center}
+  .kv{display:flex;gap:26px;justify-content:center;flex-wrap:wrap;margin:18px 0}
+  .kv b{color:var(--ink);font-family:var(--mono)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <span class="tag">Rust · zero dependencies · v1.7.1</span>
+    <h1>cad&#8209;assist<span class="dot">.</span></h1>
+    <p class="lede">A terminal-native, AI-assisted <b>parametric CAD</b> toolkit.</p>
+    <p class="sub mono">Design is a <code>.cad</code> script — scriptable, diffable, reproducible.</p>
+    <div class="btns">
+      <a class="btn primary" href="https://github.com/punitmishra/cad-assist">GitHub ↗</a>
+      <a class="btn" href="https://github.com/punitmishra/cad-assist/releases">Releases</a>
+      <a class="btn" href="https://github.com/punitmishra/cad-assist#readme">Docs</a>
+    </div>
+
+    <div class="screen" aria-label="terminal render of a gear">
+      <div class="bar"><i></i><i></i><i></i></div>
+      <pre>
+cad&gt; skill gear teeth=18 module=3 bore=6 thickness=8 name=g
+cad&gt; render mode=hlr
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⠀⣠⠤⣤⣤⣀⡀⠀⠀⠀⣀⢤⠤⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢺⠉⡏⠙⠛⢖⠒⠤⠌⢸⠀⣿⠀⠑⠫⣝⡒⠊⠀⢸⠀⡿⠉⠢⢄⣀⡤⠤⢴⠤⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⢰⠊⡏⠉⠛⠒⠶⣒⢸⠀⡇⠀⠀⠀⡏⠁⠀⢸⠀⣿⠀⠀⠀⠀⠀⠀⠀⢸⠀⡏⠓⢲⠉⠀⠀⠀⢸⠀⡿⡀⢀⣀⣀⣀⡀⠀⠀⠀⠀⠀
+⠀⠀⠀⢀⡤⠤⠤⣄⣸⠀⡇⠀⠀⠀⠀⢸⢸⠀⡇⠀⠀⠀⡇⠀⠀⢸⣀⣿⡀⠀⠀⠀⠀⠀⠀⢸⠀⡇⠀⢸⠀⠀⠀⠀⢸⠀⡏⠉⠉⠀⠀⢸⢹⠀⠀⠀⠀⠀
+⠀⠀⠀⡇⡇⠀⠀⠀⢸⠀⡇⠀⠀⠀⠀⠀⣸⠒⠓⠦⣤⡤⣇⣀⢠⡣⠊⠈⠙⢷⣲⠤⣄⣤⠚⠉⠉⢱⠢⣸⠀⠀⠀⢀⣸⡀⡇⠀⠀⠀⠀⢸⢸⠤⠤⠤⡄⠀
+⠀⡤⠤⡇⡇⠀⠀⠀⢸⡤⠧⠤⠤⣤⡤⣀⣘⣄⣀⡀⠀⠑⢲⠶⠿⢏⣑⣒⣒⠬⠿⣓⣾⣬⣙⡓⠶⢮⣤⣤⠝⠺⢍⠁⢀⡸⢣⠀⠀⠀⠀⢸⢸⠀⠀⠀⣿⠀
+⠀⡇⠀⡇⡇⠀⠀⠀⠀⠑⠦⢄⡀⠀⠈⠙⠛⠓⠒⠚⡻⠫⠭⠵⠶⠶⠶⢖⣢⣭⣭⣵⣶⣚⣫⣿⣿⣗⣶⣯⣽⣖⣤⣟⣿⣤⡬⢖⠒⠒⠒⢚⡺⠀⠀⠀⣿⡄
+⠀⡇⠀⠳⣍⡉⠉⠉⠉⠛⠛⠛⠛⠛⠛⠛⠛⢓⠶⠚⠒⠲⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠶⠾⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣾⣦⣶⠮⣁⣀⣀⣀⠀⣿⡇
+⠀⡇⢀⣀⣀⣈⣉⣹⣞⣤⣤⣤⣤⣤⠤⢤⠴⠵⠶⠶⠶⠒⠒⠒⠒⠒⠛⠛⢋⣉⣉⣉⡭⠭⠭⠝⣒⣒⣲⣭⡽⢿⣿⣿⡻⣿⢿⣿⢿⢯⡙⠫⢅⣈⣉⡭⠟⡇
+⠀⢯⠥⣄⣀⣀⣀⣀⠀⠀⠀⠀⠀⡠⣊⣁⣀⣠⡤⠤⠤⠶⠒⠒⠚⠋⣭⢛⣋⣩⣶⣶⣶⡶⠿⠟⢛⣉⡭⠖⣋⡥⠚⣡⠟⡣⣷⡝⢸⡄⢻⣭⠭⣍⣒⣤⣀⡇
+⠀⢸⢀⣀⡤⠤⠤⠼⠖⠒⢒⠟⠋⠉⠉⠀⠀⠀⠀⣀⣀⣤⣤⡴⣶⣾⣿⠿⠟⠛⠛⠋⣀⡤⠶⠚⠉⣠⠴⠚⢁⠤⡪⠃⡔⡱⢃⠏⠺⣇⡠⠬⢷⣀⠤⡤⠭⠇
+⠀⠈⠧⠤⠤⠤⠤⠤⣖⢔⣁⣀⣀⠤⣴⣒⢶⣭⣻⣮⡿⠷⠛⠋⠉⠁⠀⢀⣠⠴⠚⠋⠁⢀⣠⡶⠋⠁⢀⠔⡡⠊⢀⠜⢰⠁⡸⠀⠀⡟⠛⠓⠤⣿⣄⡇⠀⠀
+⠀⠀⠀⠀⠀⢀⣠⣞⠾⢭⣛⡲⣽⡿⠶⠟⠛⠉⠁⠀⠀⠀⢀⣀⣤⣖⣊⣉⣀⣀⣀⣤⣪⣓⠥⠤⣤⠴⡥⠮⠤⢤⠮⢤⠗⠒⣷⣚⠓⢷⠒⠲⠶⠶⠟⠁⠀⠀
+⠀⠀⠀⠀⠀⠈⠘⠚⠛⠛⠛⠛⢊⡭⠝⠋⠉⠉⢉⣭⡽⠛⠉⠁⠀⠀⠀⣀⢔⠮⠊⠁⠀⠀⡠⠊⡠⠊⠀⠀⣤⠧⢖⠮⢄⣀⡀⠈⠑⣾⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠾⢤⠤⠤⠖⠊⠁⠀⢩⠋⠀⠀⠀⣰⠟⠚⢳⠀⠀⠀⠀⢺⡖⠋⠑⢄⣀⠀⠀⠹⡜⠀⠀⠀⠉⠉⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⠦⠤⠔⠊⠀⠀⠀⠀⠑⠤⠤⠤⠊⠀⠀⠀⠀⠈⠉⠋⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⡄⠀⠀⠀⠀⠀⠀⠀⠀⢠⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠏⠉⠉⠉⠉⠉⠉⠉⠉⠹⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀</pre>
+    </div>
+    <p class="caption">An 18-tooth involute gear, hidden-line rendered — in your terminal.</p>
+  </header>
+
+  <section>
+    <h2>What it is</h2>
+    <p style="font-size:18px;max-width:62ch">
+      One small Rust kernel — <b>no cargo dependencies</b> — that does genuinely hard CAD:
+      exact-integer 2D booleans, holed extrusion, 3D mesh CSG, a 2D geometric
+      <b>constraint solver</b>, and an <b>AI copilot</b> that speaks the same command
+      language you do. Think <em>OpenSCAD meets a constraint sketcher</em>, in the terminal.
+    </p>
+  </section>
+
+  <section>
+    <h2>Capabilities</h2>
+    <div class="grid">
+      <div class="card"><h3>Exact 2D geometry</h3><p>Integer-exact booleans, fillets/chamfers, polygon offset &amp; inset — real holes that survive extrusion.</p></div>
+      <div class="card"><h3>3D solids &amp; CSG</h3><p>BSP mesh union/difference/intersection, shell, and edge fillet/chamfer — manifold-verified output.</p></div>
+      <div class="card"><h3>Constraint solver</h3><p>Sketch points, segments, arcs &amp; circles; constrain (perpendicular, tangent, radius…) and <code>solve</code>.</p></div>
+      <div class="card"><h3>AI copilot</h3><p>Describe it in English; the model emits the same commands you type, inspecting &amp; repairing as it goes.</p></div>
+      <div class="card"><h3>20+ parametric skills</h3><p>Gears, enclosures, gridfinity, sprockets, living hinges, monograms — driven by real engineering math.</p></div>
+      <div class="card"><h3>Measurement</h3><p>Area, volume, centroid, surface area, genus, interference/clash, and planar cross-sections.</p></div>
+      <div class="card"><h3>Text as geometry</h3><p>Single-stroke engraving text, and filled TrueType outlines for through-cuts and stencils.</p></div>
+      <div class="card"><h3>Everything exports</h3><p>SVG, DXF, G-code (G2/G3 arcs), STL (ASCII+binary), OBJ — real-world units, layered by role.</p></div>
+      <div class="card"><h3>Live terminal UI</h3><p><code>cad tui</code>: orbit the model with the arrow keys and watch it re-render as you type.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>60-second start</h2>
+    <pre class="code"><span class="c"># install</span>
+cargo install --path crates/cad-cli
+
+<span class="c"># build a bored block, measure it, export for printing</span>
+<span class="k">box</span> 40 40 20 name=blk
+<span class="k">cylinder</span> 8 30 name=bore
+<span class="k">translate</span> 20 20 -5 target=bore
+<span class="k">subtract</span> blk bore name=part
+<span class="k">measure</span> part            <span class="c"># volume · surface · genus</span>
+<span class="k">export</span> stl part.stl name=part
+
+<span class="c"># or just ask</span>
+<span class="k">ai</span> a phone stand with a cable slot</pre>
+  </section>
+
+  <section>
+    <h2>The build</h2>
+    <p style="color:var(--muted);max-width:60ch;margin-top:-6px">Seventeen checkpointed phases, each shippable, every one tested end to end.</p>
+    <div class="time">
+      <div class="row"><span class="v">v0.1–1.0</span><span class="t">Foundation → robust 2D, text, 3D CSG, drafting, skill library, AI loop, interop, plugins + CI</span></div>
+      <div class="row"><span class="v">v1.1</span><span class="t">Parametric expressions &amp; variables</span></div>
+      <div class="row"><span class="v">v1.2</span><span class="t">2D offset/inset · measurement &amp; analysis · assemblies &amp; BOM</span></div>
+      <div class="row"><span class="v">v1.3</span><span class="t">3D edge fillet &amp; chamfer</span></div>
+      <div class="row"><span class="v">v1.4</span><span class="t">Outline / stencil text (TrueType)</span></div>
+      <div class="row"><span class="v">v1.5</span><span class="t">2D constraint sketch solver</span></div>
+      <div class="row"><span class="v">v1.6</span><span class="t">Sketch arcs, circles &amp; curve constraints</span></div>
+      <div class="row"><span class="v">v1.7</span><span class="t">UX overhaul: templates, quieter AI, friendly REPL, live TUI</span></div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="kv"><span><b>0</b> cargo deps</span><span><b>168</b> tests</span><span><b>std</b>-only kernel</span><span><b>MIT</b></span></div>
+    cad-assist — built in Rust. Everything is text: scriptable, diffable, reproducible.<br>
+    <a href="https://github.com/punitmishra/cad-assist">github.com/punitmishra/cad-assist</a>
+  </footer>
+
+</div>
+</body>
+</html>
