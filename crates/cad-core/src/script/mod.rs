@@ -171,6 +171,11 @@ impl Interpreter {
             "segment" => return self.op_segment(&tokens, raw),
             "constrain" => return self.op_constrain(&tokens, raw),
             "solve" => return self.op_solve(raw),
+            // Inside an active sketch, `circle`/`arc` add sketch entities; with no
+            // sketch they fall through to the scene primitives below.
+            "circle" | "arc" if self.sketch.is_some() => {
+                return self.op_sketch_entity(cmd, &tokens, raw)
+            }
             _ => {}
         }
 
@@ -452,15 +457,16 @@ impl Interpreter {
             .ok_or_else(|| CadError::Arg("usage: constrain <type> <refs...> [value]".into()))?
             .clone();
         let rest = &tokens[2..];
-        // distance/length/angle carry a trailing numeric value.
-        let (refs_toks, value) = if matches!(kind.as_str(), "distance" | "length" | "angle") {
-            let v = rest
-                .last()
-                .ok_or_else(|| CadError::Arg(format!("{kind} needs a value")))?;
-            (&rest[..rest.len() - 1], Some(self.sk_num(v)?))
-        } else {
-            (rest, None)
-        };
+        // distance/length/angle/radius carry a trailing numeric value.
+        let (refs_toks, value) =
+            if matches!(kind.as_str(), "distance" | "length" | "angle" | "radius") {
+                let v = rest
+                    .last()
+                    .ok_or_else(|| CadError::Arg(format!("{kind} needs a value")))?;
+                (&rest[..rest.len() - 1], Some(self.sk_num(v)?))
+            } else {
+                (rest, None)
+            };
         let refs: Vec<&str> = refs_toks.iter().map(|s| s.as_str()).collect();
         let snap = self.snapshot();
         let sk = self
@@ -492,6 +498,49 @@ impl Interpreter {
             "{status}: {} iters, residual {:.2e}, {} free coords, {} equations",
             rep.iterations, rep.residual, rep.free_coords, rep.equations
         ))
+    }
+
+    /// `circle <name> <centerPoint> <r>` / `arc <name> <center> <start> <end>` —
+    /// add a curved entity to the active sketch (routed here only when a sketch
+    /// is open; otherwise `circle`/`arc` create scene primitives).
+    fn op_sketch_entity(&mut self, cmd: &str, tokens: &[String], raw: &str) -> Result<String> {
+        let snap = self.snapshot();
+        let msg = if cmd == "circle" {
+            let name = tokens
+                .get(1)
+                .ok_or_else(|| CadError::Arg("usage: circle <name> <centerPoint> <r>".into()))?
+                .clone();
+            let center = tokens
+                .get(2)
+                .ok_or_else(|| CadError::Arg("circle needs a center point".into()))?
+                .clone();
+            let r = self.sk_num(
+                tokens
+                    .get(3)
+                    .ok_or_else(|| CadError::Arg("circle needs a radius".into()))?,
+            )?;
+            let sk = self.sketch.as_mut().unwrap();
+            sk.add_circle(&name, &center, r)?;
+            format!("circle '{name}' @{center} r{r}")
+        } else {
+            let (name, c, s, e) = match (tokens.get(1), tokens.get(2), tokens.get(3), tokens.get(4))
+            {
+                (Some(n), Some(c), Some(s), Some(e)) => {
+                    (n.clone(), c.clone(), s.clone(), e.clone())
+                }
+                _ => {
+                    return Err(CadError::Arg(
+                        "usage: arc <name> <center> <start> <end>".into(),
+                    ))
+                }
+            };
+            let sk = self.sketch.as_mut().unwrap();
+            sk.add_arc(&name, &c, &s, &e)?;
+            format!("arc '{name}' @{c} {s}→{e}")
+        };
+        self.push_undo(snap);
+        self.history.push(raw.trim().to_string());
+        Ok(msg)
     }
 
     // ---- 2D creators -------------------------------------------------------

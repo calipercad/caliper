@@ -1,0 +1,28 @@
+# constrained-washer.cad — a washer defined by circle constraints rather than
+# fixed coordinates: two concentric circles, radii set by `radius`. Change the
+# radii (or drive them from variables) and the washer re-derives. Shows the
+# v1.6 sketch circles + concentric/radius constraints, and that a constrained
+# inner circle becomes a real hole.
+#
+#   cad run examples/constrained-washer.cad
+
+units mm
+
+set od 40          # outer diameter
+set id 16          # inner (bore) diameter
+
+sketch washer
+point c 5 5                      # rough center; `fix` pins it at the origin
+circle outer c 15                # rough radii; constraints set them exactly
+circle bore  c 5
+constrain fix c
+constrain concentric outer bore
+constrain radius outer $od/2
+constrain radius bore  $id/2
+solve
+sketch close name=washer         # outer disc with a concentric hole
+
+measure washer                   # net area ≈ π(od/2)² − π(id/2)²
+render mode=2d
+export svg constrained-washer.svg
+export dxf constrained-washer.dxf

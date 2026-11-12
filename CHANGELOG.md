@@ -3,6 +3,29 @@
 All notable changes to cad-assist are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## [1.6.0] — Sketch arcs, circles & curve constraints
+
+The constraint sketcher (v1.5) grows curved geometry. Still std-only.
+
+### Added
+- **Sketch circles & arcs**: inside an active sketch, `circle <name> <centerPt>
+  <r>` adds a circle (radius becomes a solver variable) and
+  `arc <name> <center> <start> <end>` adds an arc (auto-constrained so both
+  endpoints are co-radial). Outside a sketch, `circle`/`arc` still create scene
+  primitives.
+- **Curve constraints**: `radius`, `tangent` (line–circle and circle–circle,
+  external), `concentric`, `point_on` (point on a circle or a segment), and
+  `equal` extended to circle radii. The solver's free variables now include
+  circle radii.
+- **Emission**: `sketch close` emits the segment/arc boundary (arcs tessellated
+  into the outline) plus each circle as its own contour, so a constrained hole
+  becomes a real hole after winding classification.
+- Example `examples/constrained-washer.cad`.
+
+### Scope
+- Straight segments, full circles, and circular arcs; spline/ellipse geometry is
+  future work. Under-constrained sketches converge to the nearest solution.
+
 ## [1.5.1] — Docs & examples
 
 Documentation and example refresh; no code or behavior changes.

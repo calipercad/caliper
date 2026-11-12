@@ -37,6 +37,7 @@ foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
 | 13 | v1.3 | 3D edge fillet & chamfer | ✅ complete |
 | 14 | v1.4 | Outline / stencil text (TrueType `glyf`) | ✅ complete |
 | 15 | v1.5 | 2D constraint sketch solver | ✅ complete |
+| 16 | v1.6 | Sketch arcs, circles & curve constraints | ✅ complete |
 
 ---
 
@@ -45,9 +46,9 @@ foundation into a deeply feature-rich, AutoCAD-class terminal CAD toolkit.
 The eight-phase roadmap delivered a coherent v1.0. Growth continues as
 independent, checkpointed phases in the same spirit (std-only, text-first,
 every fix gets a test). Phases 9–12 are shipped, below; further candidates
-include arcs/circles + tangent/radius constraints in the sketcher, true
-variable-radius / concave 3D fillets, loft & sweep-along-path, PDF vector export,
-and a relax-std-only polish phase (WASM/dylib plugin host, cargo-fuzz, 3MF).
+include loft & sweep-along-path, PDF vector export, variable-radius / concave 3D
+fillets, spline/ellipse sketch geometry, and a relax-std-only polish phase
+(WASM/dylib plugin host, cargo-fuzz, 3MF).
 
 ## Phase 9 — Parametric expressions & variables ✅ (v1.1)
 
@@ -194,6 +195,29 @@ residual reported, no crash.
 `length`) solves to the exact size; perpendicular/equal/distance/angle hit their
 targets; `undo` restores pre-solve coords; `save` replays bit-identically;
 `cargo test` green (`tests/phase15.rs` + `sketch` unit tests).
+
+---
+
+## Phase 16 — Sketch arcs, circles & curve constraints ✅ (v1.6)
+
+**Objective.** Give the constraint sketcher curved geometry: circles, arcs, and
+the constraints that relate them.
+
+**Delivered.** Sketch `circle <name> <center> <r>` (radius becomes a solver
+variable) and `arc <name> <center> <start> <end>` (endpoints auto co-radial);
+constraints `radius`, `tangent` (line–circle & circle–circle), `concentric`,
+`point_on`, and `equal` on radii. `sketch close` emits the segment/arc boundary
+(arcs tessellated) plus each circle as its own contour (constrained holes).
+Inside a sketch `circle`/`arc` route to the sketch; outside they stay the scene
+primitives.
+
+**Scope.** Straight segments, circles, circular arcs; splines/ellipses future.
+
+**Checkpoint (met).** A circle with `radius` solves to the right disc; `tangent`
+line–circle makes center-to-line distance ≈ r; two circles `tangent` →
+center distance ≈ r1+r2; `concentric`+`equal` tie centers/radii; a half-disk
+(segment + arc) emits a curved boundary; `cargo test` green (`tests/phase16.rs`
++ `sketch` unit tests).
 
 ---
 

@@ -193,17 +193,20 @@ above, rewriting a token to a number string before it reaches `Args`.
 ### Constraint sketches
 
 `geom2d::sketch` makes the language a constraint-driven sketcher. A `Sketch`
-(held on the interpreter as the active sketch, in the undo snapshot) is points +
-line segments plus geometric `Constraint`s (`fix`, `coincident`, `horizontal`/
-`vertical`, `parallel`/`perpendicular`, `equal`, `distance`, `length`, `angle`).
-`solve` treats the non-fixed point coordinates as the free variables and each
-constraint as residual equation(s), then runs Gauss–Newton with Levenberg–
-Marquardt damping — a numeric central-difference Jacobian and a small in-tree
-dense `solve_linear` (Gaussian elimination; `math.rs` has no general linear
-algebra). Residual assembly walks ordered `Vec`s only, so a solve is
-deterministic and `save`/replay (which re-runs the recorded `solve` line) is
-bit-identical. `sketch close` emits the solved points as a `Shape`. Scope is
-straight segments; arcs/circles and tangent/radius constraints are future work.
+(held on the interpreter as the active sketch, in the undo snapshot) is points,
+line segments, circles, and arcs plus geometric `Constraint`s (`fix`,
+`coincident`, `horizontal`/`vertical`, `parallel`/`perpendicular`, `equal`,
+`distance`, `length`, `angle`, `radius`, `tangent`, `concentric`, `point_on`).
+`solve` treats the free variables — non-fixed point coordinates **and** circle
+radii, enumerated via a `Var` enum — and each constraint as residual
+equation(s), then runs Gauss–Newton with Levenberg–Marquardt damping (a numeric
+central-difference Jacobian and a small in-tree dense `solve_linear`; `math.rs`
+has no general linear algebra). Residual assembly walks ordered `Vec`s only, so
+a solve is deterministic and `save`/replay (which re-runs the recorded `solve`
+line) is bit-identical. `sketch close` emits the solved sketch as a `Shape`: the
+segment/arc boundary chain (arcs tessellated) plus each circle as its own
+contour, winding-classified. Scope is straight segments, circles, and circular
+arcs; splines/ellipses are future work.
 
 ## Known limitations (addressed by the roadmap)
 

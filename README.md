@@ -100,7 +100,7 @@ Run `cad help` for the full reference. The essentials:
 | Ops | `extrude h`, `revolve`, `translate`, `rotate`, `scale`, `array`, `mirror`, `group`/`ungroup`, `fillet`, `chamfer` (2D corners **or** 3D edges), `offset`/`inset`, `shell`, `dim`, `section` |
 | Booleans | `union a b`, `subtract a b`, `intersect a b`, `xor a b` (2D shapes **or** 3D meshes, auto-dispatched) |
 | Variables | `set w 40`, `unset w`, `vars` — then `$w` / `${w*2}` in any numeric arg |
-| Sketch | `sketch <name>`, `point`, `segment`, `constrain <type> …`, `solve`, `sketch close` (2D constraint solver) |
+| Sketch | `sketch <name>`, `point`, `segment`, `circle`, `arc`, `constrain <type> …` (incl. `radius`/`tangent`/`concentric`/`point_on`), `solve`, `sketch close` |
 | Measure | `measure [name]`, `interfere [a b]`, `bom [group=]`, `part`, `assembly` |
 | Skills | `skill <name> …` (see `skills`, [SKILLS.md](docs/SKILLS.md)) |
 | Scene | `units`, `select`, `delete`, `clear`, `list`, `bbox`, `undo`, `redo` |
@@ -198,6 +198,7 @@ Runnable scripts live in [`examples/`](examples):
 | `bolt-flange-assembly.cad` | **parts, assembly & BOM** (polar-arrayed bolts) | SVG |
 | `constrained-plate.cad` | **constraint solver** — rough guesses → exact rectangle | SVG |
 | `sketch-to-part.cad` | **constraint sketch → extrude** into a 3D solid | STL |
+| `constrained-washer.cad` | **sketch circles** — concentric + radius constraints → a washer | SVG + DXF |
 
 ```sh
 cad run examples/print-gear.cad

@@ -73,10 +73,14 @@ SKETCH / CONSTRAINTS (constraint-driven 2D geometry)
   sketch <name>                                    begin a constraint sketch
   point <name> <x> <y>                             add a point (initial guess; x/y accept expressions)
   segment <name> <p1> <p2>                         add a line segment between two points
+  circle <name> <centerPt> <r>                     add a circle (radius is solved)   [inside a sketch]
+  arc <name> <center> <start> <end>                add a circular arc                [inside a sketch]
   constrain <type> <refs...> [value]               add a geometric constraint:
        fix <p>              coincident <p1> <p2>    horizontal <seg>    vertical <seg>
-       parallel <s1> <s2>   perpendicular <s1> <s2> equal <s1> <s2>
+       parallel <s1> <s2>   perpendicular <s1> <s2> equal <s1> <s2> | <c1> <c2>
        distance <p1> <p2> <d>   length <seg> <d>    angle <s1> <s2> <deg>
+       radius <circle|arc> <r>   tangent <seg|circle> <circle>
+       concentric <c1> <c2>      point_on <p> <circle|seg>
   solve                                            solve the sketch (reports residual + DOF)
   sketch close [open]                              emit the solved sketch as a Shape (closed by default)
 
