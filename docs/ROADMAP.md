@@ -291,6 +291,32 @@ resample cleanly, 3-section stack, and error paths — plus `cargo test`/`fmt`/
 
 ---
 
+## Phase 20 — Non-convex fillets & chamfers ✅ (v1.10)
+
+**Objective.** Round/bevel the sharp edges of **non-convex** solids — the inside
+(concave) corners of L-brackets, notched plates and the like — which the convex
+global-polytope method structurally can't handle.
+
+**Delivered.** 3D `fillet`/`chamfer` now route by convexity: convex solids keep
+the exact polytope path; **non-convex prismatic (Z-extruded) solids** round their
+vertical edges — convex *and* concave — by slicing the constant cross-section
+(`geom3d::section`), beveling that 2D profile (`Contour::fillet`/`chamfer`, which
+handle inside corners exactly), and re-extruding (`bevel_prismatic`). Exact and
+robust. `examples/fillet-bracket.cad` demos a rounded inside corner.
+
+**Scope.** `std`-only, zero crates. Rim (top/bottom) edges stay sharp; a
+non-prismatic non-convex solid errors cleanly. The initially-planned per-edge CSG
+tool approach was dropped after it proved unreliable where 3+ edges meet at a
+corner (chained BSP booleans go non-manifold) — the profile re-extrude is exact
+instead.
+
+**Checkpoint (met).** `crates/cad-core/tests/phase20.rs` — fillet & chamfer of an
+L-prism and a notched plate stay closed genus-0 manifolds, convex box keeps the
+exact path, non-prismatic non-convex errors — plus `cargo test`/`fmt`/`clippy`
+green and the example rendering a closed solid.
+
+---
+
 ## Phase 0 — Foundation ✅ (v0.1)
 
 **Delivered.** Geometry kernel (`Vec/Mat`, `Contour`/`Shape`, `Mesh`,

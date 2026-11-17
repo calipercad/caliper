@@ -1,0 +1,14 @@
+# Fillet a non-convex solid — an L-bracket with a rounded INSIDE corner.
+# The bracket is not convex, so fillet rounds its vertical edges by filleting
+# the 2D cross-section (which handles the concave inside corner) and re-extruding.
+
+rect 40 40 name=plate
+rect 25 25 name=cut
+translate 15 15 0 target=cut
+subtract plate cut name=L          # L-shaped profile (concave corner at 15,15)
+extrude 20 target=L name=bracket
+
+fillet 4 seg=3 target=bracket      # rounds the outside AND inside vertical edges
+render mode=hlr
+measure bracket                    # closed, genus 0
+export stl bracket.stl name=bracket

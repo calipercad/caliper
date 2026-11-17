@@ -122,7 +122,11 @@ Caliper/                 workspace root (no package)
   **vertex enumeration** of the convex polytope bounded by the face planes plus
   those cuts (every valid triple-plane vertex, assembled into faces) — exact and
   closed-manifold by construction, so it sidesteps the accumulating fragility of
-  chaining many BSP booleans. Non-convex input is rejected.
+  chaining many BSP booleans. A **non-convex** solid instead takes the
+  `bevel_prismatic` path: if it's Z-extruded, its vertical edges are rounded by
+  slicing the cross-section (`geom3d::section`), filleting/chamfering that 2D
+  profile (concave corners and all) and re-extruding — exact, no booleans; rim
+  edges stay sharp and non-prismatic solids are rejected.
 - **`geom3d::csg`** — 3D constructive solid geometry. `union`/`difference`/
   `intersection` on closed-manifold meshes via a BSP-tree kernel (csg.js
   approach), then a T-junction healing pass (subdivide edges at stray vertices)

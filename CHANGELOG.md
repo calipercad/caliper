@@ -3,6 +3,23 @@
 All notable changes to Caliper are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## [1.10.0] — Non-convex fillets & chamfers
+
+3D `fillet`/`chamfer` now work on **non-convex** solids, not just convex ones —
+so you can round the **concave inside corners** of L-brackets, notched plates and
+other real-world parts.
+
+- **Convex solids** keep the exact global-polytope path (every edge, best corners).
+- **Non-convex prismatic (Z-extruded) solids** round their **vertical edges** —
+  convex *and* concave — by slicing the constant cross-section
+  (`geom3d::section`), filleting/chamfering that 2D profile (which handles inside
+  corners exactly), and re-extruding. Exact and robust; no fragile boolean chains.
+- Scope: top/bottom rim edges stay sharp; a non-prismatic non-convex solid is
+  rejected with a clear error. (The earlier approach of per-edge CSG tools was
+  dropped — chained booleans aren't reliable where many edges meet at a corner.)
+- Example: `examples/fillet-bracket.cad` (an L-bracket with a rounded inside
+  corner). `std`-only, zero crates unchanged.
+
 ## [1.9.0] — Loft
 
 Skin a watertight solid through a stack of 2D profiles — the surfacing set is now

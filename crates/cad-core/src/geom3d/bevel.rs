@@ -1,32 +1,36 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 Caliper CAD
 
-//! 3D edge fillet & chamfer — round or bevel the sharp convex edges of a solid
-//! `Mesh`. This complements the 2D-profile workflow (fillet the profile, then
+//! 3D edge fillet & chamfer — round or bevel the sharp edges of a solid `Mesh`.
+//! This complements the 2D-profile workflow (fillet the profile, then
 //! `extrude`): it works on an existing solid, including the extrusion rims the
 //! profile workflow leaves sharp.
 //!
-//! **Method.** A bevel of a convex solid is a convex polytope bounded by the
-//! solid's original face planes plus one or more *cutting planes* per sharp
-//! convex edge. We build that polytope directly by **vertex enumeration**: every
-//! valid triple of planes gives a candidate vertex, we keep the ones inside all
-//! the half-spaces, and assemble each plane's incident vertices into a face.
-//! This is exact and closed-manifold by construction — it avoids the
-//! accumulating fragility of many sequential BSP booleans.
+//! **Convex solids.** A bevel of a convex solid is a convex polytope bounded by
+//! the solid's original face planes plus one or more *cutting planes* per sharp
+//! edge. We build that polytope directly by **vertex enumeration**: every valid
+//! triple of planes gives a candidate vertex, we keep the ones inside all the
+//! half-spaces, and assemble each plane's incident vertices into a face. Exact
+//! and closed-manifold by construction — and corners blend automatically where
+//! edges meet.
 //!
-//! - **chamfer(d)** adds one bisector plane per convex edge, cutting it back by
-//!   setback `d`.
+//! - **chamfer(d)** adds one bisector plane per convex edge (setback `d`).
 //! - **fillet(r, seg)** adds `seg` planes per convex edge, each tangent to a
-//!   radius-`r` cylinder — a faceted round, the kernel's "precision = segment
-//!   count" convention. Corners blend automatically where edges meet.
+//!   radius-`r` cylinder (a faceted round).
 //!
-//! **Scope.** Convex / prismatic solids (boxes, extruded and revolved prisms,
-//! wedges). A non-convex solid is rejected with a clean error, since the
-//! plane-intersection polytope is only equal to the original for convex input.
+//! **Non-convex solids** (L-brackets, notched plates) can't use the global
+//! polytope — it would fill in the concavities. Instead, for a **Z-extruded
+//! (prismatic)** solid we round its *vertical* edges by slicing the constant
+//! cross-section ([`section`]), filleting/chamfering that 2D profile — which
+//! handles concave (inside) corners exactly via [`crate::geom2d::Contour`] — and
+//! re-extruding. This is exact and robust (no fragile boolean chains). Scope:
+//! the top/bottom rim edges stay sharp, and a non-prismatic non-convex solid is
+//! rejected with a clean error.
 
-use super::Mesh;
+use super::section::{self, Axis};
+use super::{extrude, Mesh};
 use crate::error::{CadError, Result};
-use crate::math::{Vec3, EPS};
+use crate::math::{Mat4, Vec3, EPS};
 
 /// An oriented plane, half-space `normal · x ≤ w` (outward normal).
 #[derive(Clone, Copy)]
@@ -35,10 +39,19 @@ struct Plane {
     w: f64,
 }
 
+/// Which bevel the non-convex (prismatic) path is performing.
+enum Op {
+    Chamfer(f64),
+    Fillet { radius: f64, seg: usize },
+}
+
 /// Chamfer every sharp convex edge back by `setback`.
 pub fn chamfer(mesh: &Mesh, setback: f64, angle_deg: f64) -> Result<Mesh> {
     if setback <= EPS {
         return Err(CadError::Arg("chamfer distance must be positive".into()));
+    }
+    if !is_convex(mesh, &face_planes(mesh)) {
+        return bevel_prismatic(mesh, Op::Chamfer(setback));
     }
     bevel(mesh, angle_deg, |edges, planes| {
         for eb in edges {
@@ -61,6 +74,9 @@ pub fn fillet(mesh: &Mesh, radius: f64, seg: usize, angle_deg: f64) -> Result<Me
         return Err(CadError::Arg("fillet radius must be positive".into()));
     }
     let seg = seg.max(1);
+    if !is_convex(mesh, &face_planes(mesh)) {
+        return bevel_prismatic(mesh, Op::Fillet { radius, seg });
+    }
     bevel(mesh, angle_deg, |edges, planes| {
         for eb in edges {
             // Fillet cylinder axis: distance r inside both faces, in the edge's
@@ -92,8 +108,53 @@ pub fn fillet(mesh: &Mesh, radius: f64, seg: usize, angle_deg: f64) -> Result<Me
     })
 }
 
-/// Shared driver: gather the solid's face planes + the op's cutting planes, then
-/// rebuild the bounded convex polytope.
+/// Non-convex path: round/bevel the vertical edges of a Z-extruded (prismatic)
+/// solid by slicing its cross-section, beveling that 2D profile (which rounds
+/// concave corners exactly), and re-extruding. Rim edges stay sharp; a
+/// non-prismatic solid errors cleanly.
+fn bevel_prismatic(mesh: &Mesh, op: Op) -> Result<Mesh> {
+    let bb = mesh.bbox();
+    let (zmin, zmax) = (bb.min.z, bb.max.z);
+    let h = zmax - zmin;
+    if h <= EPS {
+        return Err(CadError::Geometry(
+            "3D fillet/chamfer: solid has no height along Z".into(),
+        ));
+    }
+    // Prismatic ⇔ every vertex lies on the bottom or top cap (what `extrude`
+    // produces). Otherwise the mid-height section doesn't describe the solid.
+    let tol = extent(mesh) * 1e-5;
+    if mesh
+        .verts
+        .iter()
+        .any(|v| (v.z - zmin).abs() > tol && (v.z - zmax).abs() > tol)
+    {
+        return Err(CadError::Geometry(
+            "3D fillet/chamfer of a non-convex solid is limited to Z-extruded \
+             (prismatic) solids — fillet the 2D profile and extrude instead"
+                .into(),
+        ));
+    }
+    let profile = section::section(mesh, Axis::Z, (zmin + zmax) * 0.5)?;
+    let rounded = match op {
+        Op::Chamfer(d) => profile.chamfer(d),
+        Op::Fillet { radius, seg } => profile.fillet(radius, seg),
+    };
+    let mut out = extrude(&rounded, h)?;
+    if zmin.abs() > EPS {
+        out.transform(&Mat4::translation(Vec3::new(0.0, 0.0, zmin)));
+    }
+    if out.is_closed_manifold() {
+        Ok(out)
+    } else {
+        Err(CadError::Geometry(
+            "non-convex fillet/chamfer did not produce a closed manifold".into(),
+        ))
+    }
+}
+
+/// Shared driver (convex path): gather the solid's face planes + the op's cutting
+/// planes, then rebuild the bounded convex polytope.
 fn bevel(
     mesh: &Mesh,
     angle_deg: f64,
@@ -352,12 +413,14 @@ mod tests {
     }
 
     #[test]
-    fn non_convex_errors() {
-        // An L-shape prism is not convex → clean error.
+    fn non_prismatic_non_convex_errors() {
+        // A stepped solid (vertices at three Z levels) is neither convex nor
+        // Z-prismatic → clean error, not garbage.
         let mut a = Mesh::cuboid(20.0, 20.0, 10.0);
-        let mut b = Mesh::cuboid(10.0, 10.0, 10.0);
-        b.transform(&crate::math::Mat4::translation(Vec3::new(20.0, 0.0, 0.0)));
-        a.append(&b); // not a manifold/convex union, just coexisting boxes
+        let mut b = Mesh::cuboid(8.0, 8.0, 6.0);
+        b.transform(&Mat4::translation(Vec3::new(6.0, 6.0, 10.0))); // sits on top
+        a.append(&b);
         assert!(chamfer(&a, 2.0, 20.0).is_err());
+        assert!(fillet(&a, 2.0, 3, 20.0).is_err());
     }
 }

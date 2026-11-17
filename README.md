@@ -287,7 +287,7 @@ each phase with its own design and checkpoint.
 
 ## Status
 
-**v1.9 — all shipped milestones tested end to end.** v1.0 completed the
+**v1.10 — all shipped milestones tested end to end.** v1.0 completed the
 original eight-phase roadmap (robust 2D geometry, text + layered cut/score/
 engrave export, 3D mesh CSG + shell, drafting & rendering, a 20-skill parametric
 library, the AI copilot loop, interop, and the `plugin` surface + property tests
@@ -296,12 +296,13 @@ library, the AI copilot loop, interop, and the `plugin` surface + property tests
 **3D edge fillet/chamfer** (v1.3), TrueType **outline/stencil text** (v1.4), the
 **2D constraint sketch solver** + **arcs/circles & curve constraints** (v1.5–1.6),
 a **UX overhaul** — templates, quieter AI, friendly REPL, live TUI (v1.7), the
-**Caliper rebrand + open-core licensing** (Apache-2.0 + CLA, v1.8), and **loft** —
-skinning solids through stacked 2D profiles (v1.9). See
-[`docs/ROADMAP.md`](docs/ROADMAP.md) and [`CHANGELOG.md`](CHANGELOG.md).
+**Caliper rebrand + open-core licensing** (Apache-2.0 + CLA, v1.8), **loft** —
+skinning solids through stacked 2D profiles (v1.9), and **non-convex fillets &
+chamfers** — rounding concave inside corners on L-brackets and notched plates
+(v1.10). See [`docs/ROADMAP.md`](docs/ROADMAP.md) and [`CHANGELOG.md`](CHANGELOG.md).
 
-Still zero-dependency, `std`-only. Candidate next steps: non-convex fillets,
-PDF vector export, sweep-along-path, and a hosted **Caliper Cloud** tier.
+Still zero-dependency, `std`-only. Candidate next steps: PDF vector export,
+sweep-along-path, and a hosted **Caliper Cloud** tier.
 
 ## Contributing
 

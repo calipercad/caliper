@@ -51,7 +51,8 @@ OPERATIONS (default target = current selection; override with target=<id>)
   xor <a> <b> [name=]                              a ⊕ b  (2D shapes only)
   fillet <r> [seg=] [angle=20] [target=]           round corners: 2D contour, or 3D mesh edges
   chamfer <d> [angle=20] [target=]                 bevel corners: 2D contour, or 3D mesh edges
-  (3D fillet/chamfer round the sharp convex edges of a solid; convex/prismatic)
+  (3D fillet/chamfer: convex solids round every edge; non-convex prismatic
+   solids round their vertical edges — concave inside corners included)
   offset <dist> [join=round|miter|bevel] [seg=16] [miter=4] [target=] [name=]
                                                    grow(+)/shrink(−) a 2D profile (kerf/clearance)
   inset <dist> [join= seg= target= name=]          shrink a 2D profile by dist (= offset −dist)

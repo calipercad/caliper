@@ -1279,7 +1279,8 @@ impl Interpreter {
 
     /// `fillet <r> [seg=] [angle=] [target=]` — round corners. Auto-dispatches by
     /// kind: a 2D shape rounds its contour corners; a 3D mesh rounds its sharp
-    /// convex edges with `seg` facets (faceted round, convex/prismatic solids).
+    /// edges with `seg` facets. A convex solid rounds every edge; a non-convex
+    /// (prismatic) solid rounds its vertical edges, including concave ones.
     fn op_fillet(&mut self, args: &Args) -> Result<String> {
         let r = args.pos_f64(0)?;
         let target = args.get_str("target").map(|s| s.to_string());
@@ -1301,7 +1302,8 @@ impl Interpreter {
     }
 
     /// `chamfer <d> [angle=] [target=]` — bevel corners. 2D shape: contour
-    /// corners; 3D mesh: sharp convex edges cut back by `d` (convex/prismatic).
+    /// corners; 3D mesh: sharp edges cut back by `d` (every edge of a convex
+    /// solid; the vertical edges, concave included, of a prismatic solid).
     fn op_chamfer(&mut self, args: &Args) -> Result<String> {
         let d = args.pos_f64(0)?;
         let target = args.get_str("target").map(|s| s.to_string());
