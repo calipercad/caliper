@@ -279,7 +279,7 @@ fn parse_stl(bytes: &[u8], mm: f64) -> Result<Mesh> {
             mesh.verts.len() - 1
         })
     };
-    for t in raw.chunks_exact(3) {
+    for t in raw.as_chunks::<3>().0 {
         let a = idx(&mut mesh, &mut map, t[0]);
         let b = idx(&mut mesh, &mut map, t[1]);
         let c = idx(&mut mesh, &mut map, t[2]);
