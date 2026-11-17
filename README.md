@@ -2,6 +2,13 @@
 
 <h1 align="center">Caliper</h1>
 
+<p align="center">
+  <a href="https://calipercad.github.io/caliper/"><b>Website</b></a> ·
+  <a href="https://github.com/calipercad/caliper/releases">Releases</a> ·
+  <a href="https://calipercad.github.io/">calipercad</a> ·
+  Apache-2.0 · zero dependencies
+</p>
+
 A terminal-native, AI-assisted **parametric CAD toolkit** written in pure Rust.
 No GUI, no cloud, no build-time downloads — it compiles offline and stays
 auditable (`std` only). You describe parts in a tiny command language (or in
