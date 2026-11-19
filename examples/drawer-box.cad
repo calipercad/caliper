@@ -1,0 +1,4 @@
+# Flat-pack drawer — front, back, sides and base laid out for laser cutting.
+skill drawer width=220 depth=160 height=90 thickness=3 name=box
+render
+export svg drawer.svg name=box_cut          # the cut layer

@@ -3,6 +3,22 @@
 All notable changes to Caliper are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## [1.11.0] — PDF export + new joinery skills
+
+Two features built in parallel (isolated worktrees), shipped together.
+
+- **New: PDF vector export.** `export pdf <file>` writes a hand-rolled, valid
+  **PDF 1.4** (no new dependencies — the kernel stays std-only): one page, vector
+  path ops, exact `xref`, MediaBox from the geometry bbox, mm→points, layered by
+  role (cut/score/engrave). Joins SVG/DXF/G-code/STL/OBJ. 2D shapes only; a 3D
+  target errors (use STL/OBJ).
+- **New skills (3):** `shelf_pin` (drilling-template strip, 32mm-spaced holes),
+  `drawer` (flat-pack front/back/sides/base panels with engraved labels), and
+  `tslot_joint` (captive-nut slot panel + mating tab). Brings the built-in skill
+  library to 23.
+- **Ops:** declared `rust-version = "1.100"` (MSRV) so toolchain/lint drift is
+  explicit; `/.claude/` (agent worktrees) gitignored.
+
 ## [1.10.0] — Non-convex fillets & chamfers
 
 3D `fillet`/`chamfer` now work on **non-convex** solids, not just convex ones —

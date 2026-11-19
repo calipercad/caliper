@@ -130,6 +130,7 @@ RENDER (ASCII/braille preview)
 EXPORT
   export svg   <path> [name=]     Cricut / Silhouette / laser / vinyl (mm)
   export dxf   <path> [name=]     AutoCAD / LibreCAD / Fusion
+  export pdf   <path> [name=]     print-to-scale vector proof (mm)
   export gcode <path> [name=]     pen plotter / drag knife / CNC (G2/G3 arcs)
   export stl   <path> [name=] [binary]   3D printing / slicers (ASCII or binary)
   export obj   <path> [name=]     3D mesh interchange

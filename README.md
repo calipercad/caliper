@@ -44,7 +44,7 @@ cutters, pen plotters, CNC, and 3D printers**.
   inspect→run→repair loop with Claude. Zero HTTP deps — it shells out to
   `curl`/`jq`.
 - **Round-trips the real world.** Import SVG/DXF/STL, `undo`/`redo`, `watch` a
-  file, and export SVG, DXF, G-code (G2/G3 arcs), STL (ASCII + binary), OBJ.
+  file, and export SVG, PDF, DXF, G-code (G2/G3 arcs), STL (ASCII + binary), OBJ.
 - **Zero dependencies.** The entire kernel is `std`-only Rust — and so is the
   `cad` binary; it only shells out to ubiquitous programs at the edges
   (`curl`/`jq` for AI, `stty` for the live TUI's raw mode).
@@ -200,6 +200,7 @@ edges only (no triangle soup). Tune it: `render mode=3d yaw=35 pitch=25 w=100 h=
 | Format | For | Notes |
 |---|---|---|
 | `svg` | Cricut, Silhouette, laser, vinyl | real-mm sizing, one cut path per contour |
+| `pdf` | print shops, laser, documentation | vector PDF 1.4, mm→points, layered by role (2D shapes) |
 | `dxf` | AutoCAD, LibreCAD, Fusion | `LWPOLYLINE`, `AC1015`, unit-tagged |
 | `gcode` | pen plotters, drag knives, CNC contour | G2/G3 arcs for circles/arcs |
 | `stl` | 3D printing, slicers | ASCII or `binary` |
@@ -287,22 +288,21 @@ each phase with its own design and checkpoint.
 
 ## Status
 
-**v1.10 — all shipped milestones tested end to end.** v1.0 completed the
+**v1.11 — all shipped milestones tested end to end.** v1.0 completed the
 original eight-phase roadmap (robust 2D geometry, text + layered cut/score/
-engrave export, 3D mesh CSG + shell, drafting & rendering, a 20-skill parametric
+engrave export, 3D mesh CSG + shell, drafting & rendering, a parametric skill
 library, the AI copilot loop, interop, and the `plugin` surface + property tests
 + CI + packaging). Since then: parametric **variables & expressions** (v1.1),
 2D **offset/inset**, **measurement & analysis**, **assemblies & BOM** (v1.2),
 **3D edge fillet/chamfer** (v1.3), TrueType **outline/stencil text** (v1.4), the
 **2D constraint sketch solver** + **arcs/circles & curve constraints** (v1.5–1.6),
-a **UX overhaul** — templates, quieter AI, friendly REPL, live TUI (v1.7), the
-**Caliper rebrand + open-core licensing** (Apache-2.0 + CLA, v1.8), **loft** —
-skinning solids through stacked 2D profiles (v1.9), and **non-convex fillets &
-chamfers** — rounding concave inside corners on L-brackets and notched plates
-(v1.10). See [`docs/ROADMAP.md`](docs/ROADMAP.md) and [`CHANGELOG.md`](CHANGELOG.md).
+a **UX overhaul** (v1.7), the **Caliper rebrand + open-core licensing**
+(Apache-2.0 + CLA, v1.8), **loft** (v1.9), **non-convex fillets & chamfers**
+(v1.10), and **PDF vector export + joinery skills** — 23 built-in skills (v1.11).
+See [`docs/ROADMAP.md`](docs/ROADMAP.md) and [`CHANGELOG.md`](CHANGELOG.md).
 
-Still zero-dependency, `std`-only. Candidate next steps: PDF vector export,
-sweep-along-path, and a hosted **Caliper Cloud** tier.
+Still zero-dependency, `std`-only. Candidate next steps: sweep-along-path, and a
+hosted **Caliper Cloud** tier.
 
 ## Contributing
 

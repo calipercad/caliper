@@ -14,12 +14,13 @@ use std::fs;
 pub mod dxf;
 pub mod gcode;
 pub mod obj;
+pub mod pdf;
 pub mod stl;
 pub mod svg;
 
 /// Formats the exporter understands.
 pub fn known_formats() -> &'static [&'static str] {
-    &["svg", "dxf", "gcode", "stl", "obj"]
+    &["svg", "dxf", "pdf", "gcode", "stl", "obj"]
 }
 
 /// A 2D entity passed to the layered exporters (SVG/DXF), carrying its export
@@ -221,6 +222,7 @@ pub fn export(
         match format.as_str() {
             "svg" => svg::to_svg(&collect_items(scene, target, members)?, mm),
             "dxf" => dxf::to_dxf(&collect_items(scene, target, members)?, mm),
+            "pdf" => pdf::to_pdf(&collect_items(scene, target, members)?, mm),
             "gcode" => gcode::to_gcode(
                 &collect_shapes(scene, target, members)?,
                 mm,

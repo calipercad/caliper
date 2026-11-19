@@ -3,8 +3,9 @@ resolver = "2"
 members = ["crates/cad-core", "crates/cad-cli"]
 
 [workspace.package]
-version = "1.10.0"
+version = "1.11.0"
 edition = "2021"
+rust-version = "1.100"
 license = "Apache-2.0"
 authors = ["Caliper CAD"]
 repository = "https://github.com/calipercad/caliper"

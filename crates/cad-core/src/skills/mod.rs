@@ -20,6 +20,7 @@ pub mod finger_box;
 pub mod gear;
 pub mod hardware;
 pub mod honeycomb;
+pub mod joinery;
 pub mod maker;
 pub mod mechanical;
 
@@ -67,6 +68,10 @@ impl SkillRegistry {
         r.register(Box::new(craft::CardSkill));
         r.register(Box::new(craft::BoxTemplateSkill));
         r.register(Box::new(craft::LivingHingeSkill));
+        // ---- joinery & fixtures ----
+        r.register(Box::new(joinery::ShelfPinSkill));
+        r.register(Box::new(joinery::DrawerSkill));
+        r.register(Box::new(joinery::TSlotJointSkill));
         r
     }
 

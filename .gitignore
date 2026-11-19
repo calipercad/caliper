@@ -4,6 +4,7 @@
 *.obj
 *.dxf
 *.svg
+*.pdf
 !docs/logo.svg
 !docs/icon.svg
 *.gcode
@@ -12,3 +13,6 @@
 *.swo
 # scratch designs in the repo root (examples/*.cad stay tracked)
 /*.cad
+
+# agent worktrees + local scratch
+/.claude/

@@ -317,6 +317,30 @@ green and the example rendering a closed solid.
 
 ---
 
+## Phase 21 — PDF vector export ✅ (v1.11)
+
+**Objective.** A press-ready vector output for print/laser shops, alongside the
+existing SVG/DXF/G-code/STL/OBJ.
+
+**Delivered.** `export pdf <file>` → a hand-rolled, valid **PDF 1.4**
+(`crates/cad-core/src/export/pdf.rs`), **zero new dependencies**: one page,
+vector path ops, exact `xref`, `/MediaBox` from the geometry bbox, mm→points,
+per-role colors — mirroring the SVG exporter. 2D shapes only; a 3D target errors
+(use STL/OBJ). Tests: `crates/cad-core/tests/phase21_pdf.rs`.
+
+## Phase 22 — Joinery skills ✅ (v1.11)
+
+**Objective.** Fill out the laser/woodworking skill library.
+
+**Delivered.** `shelf_pin`, `drawer`, `tslot_joint` (new std-only
+`skills/joinery.rs`, registered in `SkillRegistry::with_builtins`) — built-in
+skills now 23. Tests: `crates/cad-core/tests/phase22.rs`. Built in parallel with
+Phase 21 in an isolated worktree, integrated into one v1.11.0 release.
+
+**Deferred.** `bevel_gear`, `dovetail_box` — larger/riskier; a later round.
+
+---
+
 ## Phase 0 — Foundation ✅ (v0.1)
 
 **Delivered.** Geometry kernel (`Vec/Mat`, `Contour`/`Shape`, `Mesh`,

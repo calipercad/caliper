@@ -1,0 +1,7 @@
+# Shelf-pin drilling template → vector PDF for the print/laser shop.
+# 8 holes at the cabinetry-standard 32 mm spacing.
+
+skill shelf_pin count=8 spacing=32 dia=5 name=template
+render
+export pdf shelf-pins.pdf name=template     # NEW: vector PDF
+export svg shelf-pins.svg name=template
