@@ -823,6 +823,100 @@ pub fn loft(profiles: &[&[Vec2]], zs: &[f64], seg: usize) -> Result<Mesh> {
     Ok(m)
 }
 
+/// Sweep a 2D cross-section `profile` along a 2D `path` (a polyline in the XY
+/// plane) into a solid that follows the path — pipes, tubes, handles, moldings.
+/// At each path vertex (a *station*) the profile is stood up perpendicular to the
+/// path: its local `(u, v)` map to the in-plane normal (⊥ the path tangent, in
+/// XY) and `+Z`. Adjacent stations are skinned and the two ends capped.
+///
+/// v1 scope (documented, like `loft`): the path is a 2D XY polyline; the profile
+/// is a single outer contour; the path is treated as **open** (two caps).
+/// Faceted — the path polyline is the tessellation; very tight bends where the
+/// miter self-intersects may show artifacts.
+pub fn sweep(profile: &[Vec2], path: &[Vec2]) -> Result<Mesh> {
+    if profile.len() < 3 {
+        return Err(CadError::Geometry(
+            "sweep profile needs at least 3 points".into(),
+        ));
+    }
+    if path.len() < 2 {
+        return Err(CadError::Geometry(
+            "sweep path needs at least 2 points".into(),
+        ));
+    }
+    // Force the profile CCW so caps/walls share one outward orientation.
+    let mut prof = profile.to_vec();
+    if signed_area_pts(&prof) < 0.0 {
+        prof.reverse();
+    }
+    let n = prof.len();
+
+    let dir = |a: Vec2, b: Vec2| -> Vec2 {
+        let d = b - a;
+        if d.len() < EPS {
+            Vec2::ZERO
+        } else {
+            d.normalized()
+        }
+    };
+
+    // One ring per station. Frame: averaged tangent at interior vertices, the
+    // single-segment tangent at the open ends; N = perp(T) in XY, B = +Z. The
+    // frame (N, B, T) is right-handed (N × B = T), matching the loft skin.
+    let stations = path.len();
+    let mut base: Vec<usize> = Vec::with_capacity(stations);
+    let mut m = Mesh::new();
+    for i in 0..stations {
+        let t = if i == 0 {
+            dir(path[0], path[1])
+        } else if i == stations - 1 {
+            dir(path[stations - 2], path[stations - 1])
+        } else {
+            let s = dir(path[i - 1], path[i]) + dir(path[i], path[i + 1]);
+            if s.len() < EPS {
+                dir(path[i], path[i + 1])
+            } else {
+                s.normalized()
+            }
+        };
+        let nrm = t.perp();
+        let n3 = Vec3::new(nrm.x, nrm.y, 0.0);
+        let b3 = Vec3::new(0.0, 0.0, 1.0);
+        let origin = Vec3::new(path[i].x, path[i].y, 0.0);
+        base.push(m.verts.len());
+        for &p in &prof {
+            m.verts.push(origin + n3 * p.x + b3 * p.y);
+        }
+    }
+
+    // Skin adjacent stations (identity profile correspondence).
+    for k in 0..stations - 1 {
+        let (b, t) = (base[k], base[k + 1]);
+        for i in 0..n {
+            let ni = (i + 1) % n;
+            m.tris.push([b + i, b + ni, t + ni]);
+            m.tris.push([b + i, t + ni, t + i]);
+        }
+    }
+
+    // End caps from the profile triangulation (start reversed).
+    let (_r, tris2d) = triangulate_with_holes(&prof, &[])?;
+    let b0 = base[0];
+    let bl = *base.last().unwrap();
+    for tr in &tris2d {
+        m.tris.push([b0 + tr[0], b0 + tr[2], b0 + tr[1]]);
+        m.tris.push([bl + tr[0], bl + tr[1], bl + tr[2]]);
+    }
+
+    // Normalize to outward orientation (N may point either way along the path).
+    if m.signed_volume() < 0.0 {
+        for tri in &mut m.tris {
+            tri.swap(1, 2);
+        }
+    }
+    Ok(m)
+}
+
 /// Signed area of a closed polygon (counter-clockwise positive), shoelace.
 fn signed_area_pts(p: &[Vec2]) -> f64 {
     let n = p.len();

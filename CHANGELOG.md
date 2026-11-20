@@ -3,6 +3,19 @@
 All notable changes to Caliper are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## [1.12.0] — Sweep along a path
+
+- **New: `sweep <profile> <path>`.** Carry a 2D cross-section along a 2D path (a
+  polyline from `path …`) into a solid that follows it — pipes, tubes, handles,
+  moldings. The profile is stood up perpendicular to the path at each station,
+  stations are skinned, and the open ends capped; result is a verified closed
+  2-manifold. Completes the surfacing set: extrude · revolve · loft · **sweep**.
+- Kernel: `geom3d::sweep` (reuses the loft ring-skin + `triangulate_with_holes`
+  caps; per-station mitered frame). Registered for did-you-mean + undo.
+- Scope (v1): 2D XY path, single outer profile contour, open path. Faceted; tight
+  bends may self-intersect. `std`-only, zero crates.
+- Example: `examples/sweep-pipe.cad` (a round pipe following a bent track).
+
 ## [1.11.0] — PDF export + new joinery skills
 
 Two features built in parallel (isolated worktrees), shipped together.

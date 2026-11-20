@@ -158,7 +158,7 @@ Run `cad help` for the full reference. The essentials:
 |---|---|
 | 2D | `rect w h [rx=] [name=]`, `circle r`, `polygon sides r`, `star pts ro ri`, `arc r a0 a1`, `path x1 y1 … [closed]`, `text "…" [h=] [font=stroke\|outline path=<ttf>]` |
 | 3D | `box w d h`, `cylinder r h`, `sphere r`, `cone r h` |
-| Ops | `extrude h`, `revolve`, `loft`, `translate`, `rotate`, `scale`, `array`, `mirror`, `group`/`ungroup`, `fillet`, `chamfer` (2D corners **or** 3D edges), `offset`/`inset`, `shell`, `dim`, `section` |
+| Ops | `extrude h`, `revolve`, `loft`, `sweep`, `translate`, `rotate`, `scale`, `array`, `mirror`, `group`/`ungroup`, `fillet`, `chamfer` (2D corners **or** 3D edges), `offset`/`inset`, `shell`, `dim`, `section` |
 | Booleans | `union a b`, `subtract a b`, `intersect a b`, `xor a b` (2D shapes **or** 3D meshes, auto-dispatched) |
 | Variables | `set w 40`, `unset w`, `vars` — then `$w` / `${w*2}` in any numeric arg |
 | Sketch | `sketch <name>`, `point`, `segment`, `circle`, `arc`, `constrain <type> …` (incl. `radius`/`tangent`/`concentric`/`point_on`), `solve`, `sketch close` |
@@ -288,7 +288,7 @@ each phase with its own design and checkpoint.
 
 ## Status
 
-**v1.11 — all shipped milestones tested end to end.** v1.0 completed the
+**v1.12 — all shipped milestones tested end to end.** v1.0 completed the
 original eight-phase roadmap (robust 2D geometry, text + layered cut/score/
 engrave export, 3D mesh CSG + shell, drafting & rendering, a parametric skill
 library, the AI copilot loop, interop, and the `plugin` surface + property tests
@@ -298,11 +298,12 @@ library, the AI copilot loop, interop, and the `plugin` surface + property tests
 **2D constraint sketch solver** + **arcs/circles & curve constraints** (v1.5–1.6),
 a **UX overhaul** (v1.7), the **Caliper rebrand + open-core licensing**
 (Apache-2.0 + CLA, v1.8), **loft** (v1.9), **non-convex fillets & chamfers**
-(v1.10), and **PDF vector export + joinery skills** — 23 built-in skills (v1.11).
-See [`docs/ROADMAP.md`](docs/ROADMAP.md) and [`CHANGELOG.md`](CHANGELOG.md).
+(v1.10), **PDF vector export + joinery skills** — 23 built-in skills (v1.11), and
+**sweep along a path** — pipes/moldings that follow a track (v1.12). See
+[`docs/ROADMAP.md`](docs/ROADMAP.md) and [`CHANGELOG.md`](CHANGELOG.md).
 
-Still zero-dependency, `std`-only. Candidate next steps: sweep-along-path, and a
-hosted **Caliper Cloud** tier.
+Still zero-dependency, `std`-only. Candidate next steps: full 3D sweep paths,
+`bevel_gear`/`dovetail_box` skills, and a hosted **Caliper Cloud** tier.
 
 ## Contributing
 

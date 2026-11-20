@@ -1,0 +1,8 @@
+# Sweep a round profile along a bent path → a pipe that follows the track.
+circle 5 name=prof
+path 0 0 40 0 40 40 80 40 name=track
+sweep prof track name=pipe
+
+render mode=hlr
+measure pipe                 # closed, genus 0
+export stl pipe.stl name=pipe

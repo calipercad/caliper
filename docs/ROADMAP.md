@@ -341,6 +341,29 @@ Phase 21 in an isolated worktree, integrated into one v1.11.0 release.
 
 ---
 
+## Phase 23 — Sweep along a path ✅ (v1.12)
+
+**Objective.** Build solids that follow a path — pipes, tubes, handles, moldings
+— the last missing member of the surfacing set (extrude · revolve · loft · sweep).
+
+**Delivered.** `sweep <profile> <path>` (`geom3d::sweep`) carries a 2D
+cross-section along a 2D XY polyline path: at each path *station* the profile is
+stood up perpendicular to the path (frame N = perp(tangent) in XY, B = +Z,
+mitered at interior vertices), stations are skinned with the loft ring pattern,
+and the open ends capped via `triangulate_with_holes` — a verified closed
+2-manifold. `examples/sweep-pipe.cad` demos a bent round pipe.
+
+**Scope.** `std`-only, zero crates. v1: 2D XY path, single outer profile contour,
+open path; faceted (the path polyline is the tessellation). Full 3D paths and
+hollow (holed) profiles are future.
+
+**Checkpoint (met).** `crates/cad-core/tests/phase23.rs` — straight path = a
+prism (volume = area·length), bent path stays closed genus-0, degenerate
+profile/path error — plus `cargo +stable test/fmt/clippy` green and the example
+rendering a closed solid.
+
+---
+
 ## Phase 0 — Foundation ✅ (v0.1)
 
 **Delivered.** Geometry kernel (`Vec/Mat`, `Contour`/`Shape`, `Mesh`,

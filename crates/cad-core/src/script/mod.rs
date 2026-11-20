@@ -214,6 +214,7 @@ impl Interpreter {
             "extrude" => self.op_extrude(&args),
             "revolve" => self.op_revolve(&args),
             "loft" => self.op_loft(&args),
+            "sweep" => self.op_sweep(&args),
             "translate" => self.op_translate(&args),
             "rotate" => self.op_rotate(&args),
             "scale" => self.op_scale(&args),
@@ -816,6 +817,44 @@ impl Interpreter {
         let name = args.name().unwrap_or_else(|| format!("{}_loft", names[0]));
         self.scene.add(name.clone(), Geometry::Mesh(mesh));
         Ok(format!("lofted {k} profiles → '{name}'"))
+    }
+
+    /// `sweep <profile> <path> [name=out]` — sweep a 2D cross-section along a 2D
+    /// path (a polyline, from `path ...`) into a solid that follows it.
+    fn op_sweep(&mut self, args: &Args) -> Result<String> {
+        let prof_name = args
+            .pos_str(0)
+            .ok_or_else(|| {
+                CadError::Arg("sweep needs a profile and a path: sweep <profile> <path>".into())
+            })?
+            .to_string();
+        let path_name = args
+            .pos_str(1)
+            .ok_or_else(|| CadError::Arg("sweep needs a path: sweep <profile> <path>".into()))?
+            .to_string();
+        let mut pts: Vec<Vec<Vec2>> = Vec::with_capacity(2);
+        for (nm, what) in [(&prof_name, "profile"), (&path_name, "path")] {
+            let e = self.scene.resolve(Some(nm))?;
+            match &e.geom {
+                Geometry::Shape(s) => {
+                    let c = s.contours.first().ok_or_else(|| {
+                        CadError::Geometry(format!("sweep {what} '{nm}' has no contour"))
+                    })?;
+                    pts.push(c.points.clone());
+                }
+                Geometry::Mesh(_) => {
+                    return Err(CadError::Arg(format!(
+                        "sweep {what} '{nm}' must be a 2D shape"
+                    )))
+                }
+            }
+        }
+        let mesh = geom3d::sweep(&pts[0], &pts[1])?;
+        let name = args.name().unwrap_or_else(|| format!("{prof_name}_swept"));
+        self.scene.add(name.clone(), Geometry::Mesh(mesh));
+        Ok(format!(
+            "swept '{prof_name}' along '{path_name}' → '{name}'"
+        ))
     }
 
     /// Apply a transform to every named entity (a group's members or a single
@@ -2247,6 +2286,7 @@ pub fn command_names() -> &'static [&'static str] {
         "extrude",
         "revolve",
         "loft",
+        "sweep",
         "translate",
         "rotate",
         "scale",
@@ -2374,6 +2414,7 @@ fn is_modifying(cmd: &str) -> bool {
             | "extrude"
             | "revolve"
             | "loft"
+            | "sweep"
             | "translate"
             | "rotate"
             | "scale"
