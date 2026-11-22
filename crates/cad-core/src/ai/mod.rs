@@ -144,8 +144,13 @@ impl Transport for CurlTransport {
             &response,
             ".error.message? // (.error | strings) // .message? // empty",
         ) {
-            if !err.trim().is_empty() {
-                return Err(CadError::Ai(format!("API error: {}", err.trim())));
+            let err = err.trim();
+            if !err.is_empty() {
+                let models_url = format!("{}/models", url.trim_end_matches("/messages"));
+                return Err(CadError::Ai(format!(
+                    "API error: {err}{}",
+                    model_hint(err, &model, &models_url)
+                )));
             }
         }
 
@@ -268,4 +273,49 @@ fn json_string(s: &str) -> String {
     }
     out.push('"');
     out
+}
+
+/// When an API error looks like an unknown/unavailable model, return a hint
+/// pointing at `CAD_AI_MODEL` and the endpoint's model list; empty otherwise.
+/// This is the common failure on a proxy/gateway whose model names differ from
+/// the default (e.g. it serves `claude-sonnet-4-5` but not `claude-sonnet-5-5`).
+fn model_hint(err: &str, model: &str, models_url: &str) -> String {
+    let low = err.to_ascii_lowercase();
+    let about_model = low.contains("model")
+        && (low.contains("not available")
+            || low.contains("not found")
+            || low.contains("notfound")
+            || low.contains("does not exist")
+            || low.contains("unknown model"));
+    if about_model {
+        format!(
+            "\n  → the endpoint doesn't serve model '{model}'. Set CAD_AI_MODEL to one it does \
+             (list them at {models_url}), e.g. `export CAD_AI_MODEL=<id>`."
+        )
+    } else {
+        String::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn model_hint_fires_on_unavailable_model() {
+        let h = model_hint(
+            "Model claude-sonnet-5-5 is not available.",
+            "claude-sonnet-5-5",
+            "http://127.0.0.1:3030/v1/models",
+        );
+        assert!(h.contains("CAD_AI_MODEL"), "hint names the env var: {h}");
+        assert!(h.contains("claude-sonnet-5-5"), "hint names the model");
+        assert!(h.contains("/v1/models"), "hint points at the model list");
+    }
+
+    #[test]
+    fn model_hint_silent_on_unrelated_errors() {
+        assert!(model_hint("rate limit exceeded", "m", "u").is_empty());
+        assert!(model_hint("invalid x-api-key", "m", "u").is_empty());
+    }
 }

@@ -3,6 +3,16 @@
 All notable changes to Caliper are recorded here. Versions map to roadmap
 phases (see [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## [1.12.1] — Clearer AI model errors
+
+- **Fixed (DX):** when the AI endpoint rejects the configured model (common on a
+  proxy/gateway whose model names differ from the default — e.g. it serves
+  `claude-sonnet-4-5` but not `claude-sonnet-5-5`), `ai` now appends a hint:
+  which model was refused, to set `CAD_AI_MODEL`, and where to list the
+  endpoint's models (`<base>/v1/models`). Previously this surfaced as a bare
+  `API error: Model … is not available`, which read like "the AI only produces
+  samples / nothing new works." No behavior change when the model is valid.
+
 ## [1.12.0] — Sweep along a path
 
 - **New: `sweep <profile> <path>`.** Carry a 2D cross-section along a 2D path (a
